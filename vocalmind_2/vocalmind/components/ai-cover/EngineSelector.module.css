@@ -1,0 +1,97 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.btnRow {
+  display: flex;
+  gap: 0.625rem;
+  flex-wrap: wrap;
+}
+
+.engineBtn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  padding: 0.75rem 1rem;
+  border: 1.5px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-raised);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  min-width: 140px;
+  flex: 1;
+}
+
+.engineBtn:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--bg-elevated);
+}
+
+.engineBtn.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-raised));
+}
+
+.engineBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.engineName {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.engineDesc {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.badge {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  background: var(--accent);
+  color: #fff;
+}
+
+.compareBtn {
+  width: 100%;
+  padding: 0.65rem 1rem;
+  border: 1.5px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--accent);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.compareBtn:hover {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.lockedMsg {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  padding: 0.5rem 0;
+}

@@ -1,0 +1,221 @@
+.entryBox {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.heading {
+  font-size: var(--fs-h3, 1.25rem);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.hint {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* 녹음 버튼 영역 */
+.recordArea {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.recBtn {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--error, #e05252);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.15s, background 0.2s;
+}
+
+.recBtn:hover:not(:disabled) {
+  transform: scale(1.07);
+  background: color-mix(in srgb, var(--error, #e05252) 85%, white);
+}
+
+.recBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.recBtn.recActive {
+  background: color-mix(in srgb, var(--error, #e05252) 80%, black);
+}
+
+.recDot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.recBtn.recActive .recDot {
+  border-radius: 3px;
+  width: 14px;
+  height: 14px;
+}
+
+/* recPulse 애니메이션 */
+.recPulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid var(--error, #e05252);
+  animation: recPulse 1.4s ease-out infinite;
+}
+
+@keyframes recPulse {
+  0%   { transform: scale(1);   opacity: 0.8; }
+  70%  { transform: scale(1.5); opacity: 0; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+.recordInfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.recStatus {
+  font-size: var(--fs-sm);
+  color: var(--error, #e05252);
+  font-weight: 600;
+  animation: blink 1s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+.recTime {
+  font-family: var(--font-mono);
+  font-size: var(--fs-h3, 1.25rem);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.recMax {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.recDone {
+  font-size: var(--fs-sm);
+  color: var(--accent-bright);
+  font-weight: 500;
+}
+
+.recIdle {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.resetBtn {
+  padding: 5px 12px;
+  font-size: var(--fs-xs, 0.75rem);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm, 4px);
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.resetBtn:hover:not(:disabled) {
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+
+/* 미리듣기 */
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--bg-raised, var(--bg-base));
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.previewLabel {
+  font-size: var(--fs-xs, 0.72rem);
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.error {
+  font-size: var(--fs-sm);
+  color: var(--error);
+  margin: 0;
+  padding: 10px 14px;
+  background: color-mix(in srgb, var(--error, #e05252) 8%, transparent);
+  border-radius: var(--radius-sm, 4px);
+  border-left: 3px solid var(--error);
+}
+
+.submitBtn {
+  width: 100%;
+  margin-top: 4px;
+}
+
+/* 참가 완료 박스 */
+.completedBox {
+  background: var(--accent-muted);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.completedIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.completedTitle {
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--accent-bright);
+  margin: 0;
+}
+
+.completedSub {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  margin: 4px 0 0;
+}
+
+@media (max-width: 600px) {
+  .entryBox {
+    padding: 18px 16px;
+  }
+}

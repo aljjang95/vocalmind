@@ -1,0 +1,145 @@
+.card {
+  background: var(--dna-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 420px;
+}
+
+.canvasSection {
+  width: 100%;
+  background: var(--dna-bg);
+  padding: 24px 24px 16px;
+}
+
+.info {
+  padding: 20px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.userName {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+  margin: 0;
+}
+
+.voiceType {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--dna-star);
+  margin: 0;
+}
+
+.pitchRange {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.divider {
+  width: 100%;
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 8px 0;
+}
+
+.axisGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+  margin-top: 4px;
+}
+
+.axisItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.axisLabel {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.axisBarRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.axisBarTrack {
+  flex: 1;
+  height: 4px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.axisBarFill {
+  height: 100%;
+  background: var(--dna-star);
+  border-radius: 2px;
+  transition: width 0.6s var(--ease-out-expo);
+}
+
+.axisValue {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--dna-star);
+  min-width: 24px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.btnShare {
+  flex: 1;
+  padding: 10px 0;
+  background: var(--accent-muted);
+  color: var(--accent-light);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  text-align: center;
+}
+
+.btnShare:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btnReanalyze {
+  flex: 1;
+  padding: 10px 0;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  text-align: center;
+}
+
+.btnReanalyze:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}

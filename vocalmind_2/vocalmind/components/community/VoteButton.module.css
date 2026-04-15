@@ -1,0 +1,49 @@
+.btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border-radius: 20px;
+  background: none;
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  color: var(--vote-inactive);
+  transition: color 0.18s, border-color 0.18s, background 0.18s;
+  font-size: 0.82rem;
+}
+
+.btn:hover:not(:disabled) {
+  color: var(--vote-active);
+  border-color: var(--accent);
+  background: var(--accent-muted);
+}
+
+.btn.voted {
+  color: var(--vote-active);
+  border-color: var(--accent);
+  background: var(--accent-muted);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.icon {
+  transition: transform 0.4s var(--ease-out-expo);
+}
+
+.btn.animating .icon {
+  animation: heartPop 0.4s var(--ease-out-expo) forwards;
+}
+
+@keyframes heartPop {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.4); }
+  70%  { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+
+.count {
+  font-variant-numeric: tabular-nums;
+}

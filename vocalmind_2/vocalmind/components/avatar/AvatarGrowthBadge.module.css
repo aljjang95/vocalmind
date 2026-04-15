@@ -1,0 +1,47 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  transition: box-shadow 0.2s;
+}
+
+/* 기본 */
+.level-default {
+  background: color-mix(in srgb, var(--text-muted) 12%, transparent);
+  color: var(--text-muted);
+  border: 1px solid color-mix(in srgb, var(--text-muted) 25%, transparent);
+}
+
+/* 초급 */
+.level-beginner {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+/* 중급 */
+.level-intermediate {
+  background: color-mix(in srgb, var(--accent-bright, #a855f7) 12%, transparent);
+  color: var(--accent-bright, #a855f7);
+  border: 1px solid color-mix(in srgb, var(--accent-bright, #a855f7) 30%, transparent);
+}
+
+/* 고급 */
+.level-advanced {
+  background: color-mix(in srgb, var(--rank-gold, #f59e0b) 12%, transparent);
+  color: var(--rank-gold, #f59e0b);
+  border: 1px solid color-mix(in srgb, var(--rank-gold, #f59e0b) 30%, transparent);
+}
+
+/* 마스터 */
+.level-master {
+  background: color-mix(in srgb, var(--rank-gold, #f59e0b) 18%, transparent);
+  color: var(--rank-gold, #f59e0b);
+  border: 1px solid color-mix(in srgb, var(--rank-gold, #f59e0b) 40%, transparent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--rank-gold, #f59e0b) 35%, transparent);
+}

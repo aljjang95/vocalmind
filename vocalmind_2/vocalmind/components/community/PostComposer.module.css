@@ -1,0 +1,259 @@
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--bg-raised);
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  text-align: left;
+  transition: background 0.15s, color 0.15s;
+}
+
+.trigger:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.triggerIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent-muted);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.composer {
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-default);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.composerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.composerTitle {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.closeBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background 0.15s;
+}
+
+.closeBtn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.typeSelector {
+  display: flex;
+  gap: 6px;
+}
+
+.typeBtn {
+  padding: 5px 12px;
+  border-radius: 16px;
+  border: 1px solid var(--border-default);
+  background: none;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.typeBtn:hover {
+  color: var(--text-secondary);
+  border-color: var(--border-strong);
+}
+
+.typeActive {
+  color: var(--accent-bright);
+  border-color: var(--accent);
+  background: var(--accent-muted);
+}
+
+.recordSection {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.recBtn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 2px solid var(--border-default);
+  background: var(--bg-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  flex-shrink: 0;
+}
+
+.recBtn:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-muted);
+}
+
+.recActive {
+  border-color: var(--error);
+  background: var(--error-muted);
+  animation: recPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes recPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.25); }
+  50%       { box-shadow: 0 0 0 8px rgba(244, 63, 94, 0); }
+}
+
+.recDot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--error);
+  transition: border-radius 0.2s, width 0.2s, height 0.2s;
+}
+
+.recDotActive {
+  border-radius: 4px;
+  width: 16px;
+  height: 16px;
+}
+
+.recTime {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 48px;
+}
+
+.recTimeActive {
+  color: var(--error);
+}
+
+.recHint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.recDone {
+  font-size: 0.8rem;
+  color: var(--accent-light);
+}
+
+.fileLabel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  border: 1px dashed var(--border-default);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.fileLabel:hover {
+  border-color: var(--accent);
+  color: var(--accent-light);
+}
+
+.fileInput {
+  display: none;
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.input {
+  width: 100%;
+  padding: 9px 12px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.input:focus {
+  border-color: var(--accent);
+}
+
+.input::placeholder {
+  color: var(--text-muted);
+}
+
+.textarea {
+  composes: input;
+  resize: none;
+  line-height: 1.5;
+}
+
+.error {
+  font-size: 0.82rem;
+  color: var(--error);
+  padding: 8px 10px;
+  background: var(--error-muted);
+  border-radius: 6px;
+}
+
+.submitBtn {
+  padding: 10px 20px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+  align-self: flex-end;
+}
+
+.submitBtn:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.submitBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

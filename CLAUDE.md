@@ -58,6 +58,16 @@ vocalmind_2/vocalmind/
 │   ├── pricing/               # 요금제 페이지 (4카드)
 │   ├── hobby/                 # 취미반 (자유 곡 녹음+AI 평가+UpsellBanner)
 │   ├── feedback-request/      # 유료 피드백 신청 (녹음+고민 제출)
+│   ├── vocal-dna/             # 음색 DNA 카드 (Canvas 별자리 + 공유)
+│   ├── avatar/                # 아바타 에디터 + 의상 상점
+│   ├── community/             # 커뮤니티 피드 (커버/배틀/자유 + 투표)
+│   │   └── [postId]/          # 게시글 상세
+│   ├── audition/              # 주간 오디션 (참가 + 투표 + 리더보드)
+│   ├── checkout/[plan]/       # 토스페이먼츠 결제 위젯 (구독+아이템)
+│   ├── payment/success/       # 결제 성공 처리
+│   ├── payment/fail/          # 결제 실패 안내
+│   ├── teacher/               # 선생님 대시보드 (피드백 요청 관리)
+│   ├── vocal-report/          # 주간 보컬 리포트
 │   └── api/
 │       ├── evaluate/          # → Python :8001/evaluate (음성 채점)
 │       ├── onboarding-analyze/ # → Python :8001/onboarding/analyze (4축 분석)
@@ -76,7 +86,15 @@ vocalmind_2/vocalmind/
 │       ├── recommend-key/     # 음정 추천
 │       ├── separate/          # 음성 분리
 │       ├── lyrics-sync/       # 가사 싱크
-│       └── report/            # 주간 리포트
+│       ├── report/            # 주간 리포트
+│       ├── vocal-dna/         # GET(조회) + POST(Python 프록시 → Supabase upsert)
+│       ├── avatar/            # generate, items, equip, inventory
+│       ├── shop/              # purchase (토스페이먼츠 아이템 결제)
+│       ├── community/         # GET(피드) + POST(작성) + vote + [postId]
+│       ├── audition/          # GET(이벤트) + POST(참가) + vote
+│       ├── payment/           # confirm (토스 승인), plan (구독 변경)
+│       ├── storage-url/       # Supabase Storage 서명 URL 생성
+│       └── teacher/           # requests (피드백 요청 목록/상세)
 ├── backend/                   # Python FastAPI (긴장 감지 AI 엔진)
 │   ├── main.py                # FastAPI 앱 + CORS + 라우터 등록
 │   ├── routers/
@@ -84,7 +102,8 @@ vocalmind_2/vocalmind/
 │   │   ├── onboarding.py      # POST /onboarding/analyze + /onboarding/tts
 │   │   ├── ws_evaluate.py     # WS /ws/evaluate (실시간 2초 청크)
 │   │   ├── ws_scale.py        # WS /ws/scale (스케일 실시간)
-│   │   └── coach.py           # POST /coach (RAG 코칭)
+│   │   ├── coach.py           # POST /coach (RAG 코칭)
+│   │   └── vocal_dna.py       # POST /vocal-dna/analyze (5축 DNA 분석)
 │   ├── services/
 │   │   ├── tension_analyzer.py    # Jitter/Shimmer/HNR/H1-H2/포먼트/성구전환
 │   │   ├── tension_scorer.py      # 4축 긴장 점수 (후두/혀뿌리/턱/성구)
@@ -101,14 +120,14 @@ vocalmind_2/vocalmind/
 │   ├── data/
 │   │   └── stage_feedback_map.json    # 매핑 결과 (1850개→28단계)
 │   ├── models/tension.py      # TensionAnalysis, TensionScore Pydantic 모델
-│   └── tests/                 # 124개 테스트 (커버리지 95%)
+│   └── tests/                 # 167개 테스트 (커버리지 95%)
 ├── components/
 │   ├── ds/                    # 디자인 시스템 (Button, Card, MetricBar, ScoreDisplay, NavBar)
-│   ├── shared/                # Nav, Footer, Icons, TTSButton, Waveform, DemoAudioPlayer, ScrollReveal
+│   ├── shared/                # Nav, Footer, Icons, TTSButton, Waveform, DemoAudioPlayer, ScrollReveal, AudioPlayer, UserProfileCard
 │   ├── onboarding/            # OnboardingWizard + Step(Recording/Analyzing/Result/Roadmap/Transition)
 │   ├── journey/               # StageCard, PitchVisualizer, TensionIndicator, FeedbackPanel, PitchComparisonVisualizer, YouTubePlayer
 │   │   └── phases/            # WhyPhase, DemoPhase(+영상임베드), PracticePhase(+따라하기비교), EvalPhase, SummaryPhase
-│   ├── dashboard/             # NextActionCard, ProgressCard, TodayPractice, GrowthChart
+│   ├── dashboard/             # NextActionCard, ProgressCard, TodayPractice, GrowthChart, AuditionWidget
 │   ├── coach/                 # ChatBox, ChatMessage, ChatInput, QuickChips, SessionSummary
 │   ├── marketing/             # Hero, Features, HowItWorks, AIDemo, Pricing, Testimonials, CTA
 │   ├── scale-practice/        # PianoKeyboard, ScalePatternEditor, AutoLessonFlow, TransportBar
@@ -117,7 +136,11 @@ vocalmind_2/vocalmind/
 │   ├── warmup/                # ConditionForm, RoutineView, ExercisePlayer, RoutineHistory
 │   ├── breathing/             # BreathVisualizer, BreathTimer, ModeSelector, WeeklyChart
 │   ├── ai-cover/              # AudioRecorder, FileDropZone, AudioPlayer
-│   └── coaching/              # CurriculumTree, SessionInfo, CoachingLayout
+│   ├── coaching/              # CurriculumTree, SessionInfo, CoachingLayout
+│   ├── vocal-dna/             # DnaCanvas, DnaCard, DnaShareButton
+│   ├── avatar/                # AvatarDisplay, AvatarEditor, ItemShop, ItemCard
+│   ├── community/             # FeedTabs, PostCard, PostComposer, VoteButton, RankingBoard
+│   └── audition/              # AuditionBanner, AuditionTimer, AuditionEntry, AuditionLeaderboard
 ├── stores/
 │   ├── journeyStore.ts        # 여정 진도 + 등급 접근제어 + Supabase 동기화
 │   ├── onboardingStore.ts     # 온보딩 위저드 상태
@@ -130,7 +153,11 @@ vocalmind_2/vocalmind/
 │   ├── diagnosisStore.ts      # 진단 위저드 (결과만 persist)
 │   ├── aiCoverStore.ts        # AI 커버 모델
 │   ├── coachingStore.ts       # 코칭 세션
-│   └── billingStore.ts        # 요금제 플랜 관리
+│   ├── billingStore.ts        # 요금제 플랜 관리
+│   ├── vocalDnaStore.ts       # 음색 DNA 5축 분석 결과
+│   ├── avatarStore.ts         # 아바타 + 인벤토리 + 장착 상태
+│   ├── communityStore.ts      # 커뮤니티 피드 (비persist)
+│   └── auditionStore.ts       # 오디션 이벤트/참가/투표 (비persist)
 ├── lib/
 │   ├── anthropic.ts           # Anthropic 클라이언트 (server-only)
 │   ├── supabase/              # Supabase 서버/클라이언트
@@ -181,6 +208,16 @@ Frontend API (Next.js):
   /api/diagnose:         DiagnosisRequest → DiagnosisResult
   /api/coach-feedback:   FeedbackRequest → CoachFeedback
   /api/feedback-request: FormData(audio, concern) → Supabase 저장
+
+  /api/vocal-dna → GET: Supabase vocal_dna 조회 / POST → Python :8001/vocal-dna/analyze → upsert
+  /api/avatar/generate → POST: OpenAI GPT Image → Supabase Storage avatars/
+  /api/avatar/items → GET: shop_items 목록
+  /api/avatar/equip → POST: user_equipped upsert (인벤토리 소유 확인)
+  /api/shop/purchase → POST: 토스 승인 → item_purchases + user_inventory
+  /api/community → GET: 피드(latest/popular/battle, cursor) / POST: 게시글 작성
+  /api/community/vote → POST/DELETE: 투표 (unique constraint)
+  /api/audition → GET: active 이벤트 / POST: 참가 (1인 1참가)
+  /api/audition/vote → POST/DELETE: 투표 (자기 투표 방지)
 ```
 
 ## Zustand Stores
@@ -199,6 +236,10 @@ Frontend API (Next.js):
 | aiCoverStore | O | AI 커버 모델 학습 상태 |
 | coachingStore | O | 코칭 세션 |
 | billingStore | X | 요금제 플랜 관리 |
+| vocalDnaStore | O (dna만) | 음색 DNA 5축 분석 결과 |
+| avatarStore | O (avatar, equipped) | 아바타 + 인벤토리 + 장착 |
+| communityStore | X | 커뮤니티 피드, 탭, cursor |
+| auditionStore | X | 오디션 이벤트, 참가, 투표 |
 
 ## 긴장 감지 AI 엔진 (backend/)
 
@@ -249,7 +290,7 @@ parselmouth 기반으로 혀뿌리/턱/후두 긴장을 음성 신호에서 측�
 - ❌ `NEXT_PUBLIC_ANTHROPIC_API_KEY` → 키 노출 절대 금지
 - ❌ `body.userId` 신뢰 → `supabase.auth.getUser()` 사용
 - ❌ `as any` 타입 캐스팅 → strict 모드
-- ❌ `librosa.load()` → Windows parselmouth 데드락. `soundfile.read()` 사용
+- ❌ `librosa.load()` → Windows parselmouth 데드락. `soundfile.read()` 사용 (예외: audio_postprocess.py에서 RMS/리샘플링용 librosa 사용은 허용)
 - ❌ `tension_detected = False` 고정 → TensionAnalyzer 실제 측정 사용
 - ❌ Claude 호출 시 cache_control 누락 → `{"type": "ephemeral"}` 필수
 
@@ -302,7 +343,7 @@ FRONTEND_URL=                    # 프로덕션 CORS용 (Fly.io 환경변수로 
 
 ## Testing
 
-백엔드: pytest 124개 테스트 (커버리지 95%) — `cd backend && python -m pytest tests/ -v`
+백엔드: pytest 167개 테스트 (커버리지 95%) — `cd backend && python -m pytest tests/ -v`
 프론트엔드: `npm run build` 빌드 검증
 
 

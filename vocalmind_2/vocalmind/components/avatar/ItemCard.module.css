@@ -1,0 +1,148 @@
+.card {
+  position: relative;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.card:hover {
+  border-color: var(--border-default);
+  transform: translateY(-2px);
+}
+
+.card.owned {
+  border-color: var(--accent);
+}
+
+.card.equipped {
+  border-color: var(--accent-bright);
+  box-shadow: 0 0 0 2px rgba(140, 198, 160, 0.2);
+}
+
+.imageWrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  background: var(--bg-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.itemImage {
+  object-fit: contain;
+  padding: 0.5rem;
+}
+
+.placeholderImg {
+  font-size: 2.5rem;
+  color: var(--text-muted);
+}
+
+.seasonBadge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: var(--rank-gold);
+  color: #000;
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 4px;
+  letter-spacing: 0.03em;
+  line-height: 1.4;
+}
+
+.rewardBadge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: var(--accent-muted);
+  border: 1px solid var(--accent);
+  color: var(--accent-bright);
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 4px;
+  letter-spacing: 0.03em;
+  line-height: 1.4;
+}
+
+.equippedOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(140, 198, 160, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.checkIcon {
+  font-size: 2rem;
+  color: var(--accent-bright);
+  filter: drop-shadow(0 0 4px rgba(140, 198, 160, 0.6));
+}
+
+.info {
+  padding: 0.5rem 0.625rem 0.625rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  flex: 1;
+}
+
+.name {
+  font-size: var(--fs-sm);
+  color: var(--text-primary);
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.priceRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem;
+}
+
+.price {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.rewardOnly {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.buyBtn {
+  font-size: var(--fs-xs);
+  padding: 3px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--accent-bright);
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.buyBtn:hover {
+  background: var(--accent-muted);
+}
+
+.ownedLabel {
+  font-size: var(--fs-xs);
+  color: var(--accent-bright);
+  font-weight: 600;
+}

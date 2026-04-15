@@ -1,0 +1,47 @@
+.timer {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  font-family: var(--font-mono);
+  color: var(--accent-bright);
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  transition: color 0.3s;
+}
+
+.timer.urgent {
+  color: var(--error);
+}
+
+.digits {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.unit {
+  font-family: var(--font-sans, inherit);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  margin-right: 4px;
+  font-weight: 400;
+}
+
+.sep {
+  color: var(--text-muted);
+  font-size: var(--fs-h2);
+  line-height: 1;
+  margin: 0 1px;
+  font-weight: 300;
+}
+
+.compact {
+  font-size: var(--fs-sm);
+}
+
+.compact .sep {
+  font-size: var(--fs-sm);
+}
+
+.compact .unit {
+  font-size: var(--fs-xs);
+}

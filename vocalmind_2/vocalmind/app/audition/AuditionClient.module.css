@@ -1,0 +1,101 @@
+.page {
+  min-height: 100vh;
+  padding: 32px 20px 80px;
+}
+
+.inner {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  padding: 60px 0;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border-subtle);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.errorBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  background: color-mix(in srgb, var(--error, #e05252) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--error, #e05252) 30%, transparent);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-sm);
+  color: var(--error);
+}
+
+.retryBtn {
+  padding: 5px 14px;
+  font-size: var(--fs-xs, 0.75rem);
+  border: 1px solid var(--error);
+  border-radius: var(--radius-sm, 4px);
+  background: none;
+  color: var(--error);
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.retryBtn:hover {
+  background: color-mix(in srgb, var(--error, #e05252) 10%, transparent);
+}
+
+/* 이벤트 없음 상태 */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 80px 24px;
+  text-align: center;
+}
+
+.emptyIcon {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.emptyTitle {
+  font-size: var(--fs-h3, 1.25rem);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.emptySub {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  margin: 0;
+  max-width: 320px;
+  line-height: 1.6;
+}
+
+@media (max-width: 600px) {
+  .page {
+    padding: 20px 12px 60px;
+  }
+
+  .inner {
+    gap: 16px;
+  }
+}

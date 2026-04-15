@@ -1,0 +1,8 @@
+# Local Claude config
+.claude.local.md
+.claude/
+.serena/
+.superpowers/
+
+# Archives
+*.zip

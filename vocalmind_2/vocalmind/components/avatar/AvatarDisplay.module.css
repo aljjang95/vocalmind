@@ -1,0 +1,74 @@
+.container {
+  position: relative;
+  width: 100%;
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+  aspect-ratio: 3 / 4;
+}
+
+/* 사이즈 변형 */
+.sm {
+  width: 48px;
+  border-radius: 50%;
+}
+
+.md {
+  width: 160px;
+}
+
+.lg {
+  width: 280px;
+}
+
+.layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.base {
+  z-index: 1;
+  object-fit: cover;
+}
+
+.bottom {
+  z-index: 2;
+}
+
+.top {
+  z-index: 3;
+}
+
+.hat {
+  z-index: 4;
+}
+
+.accessory {
+  z-index: 5;
+}
+
+.effect {
+  z-index: 6;
+}
+
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  text-align: center;
+  padding: 1rem;
+}
+
+.placeholderIcon {
+  font-size: 3rem;
+  margin-bottom: 0.5rem;
+}

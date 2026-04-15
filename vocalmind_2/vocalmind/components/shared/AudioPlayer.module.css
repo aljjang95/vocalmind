@@ -1,0 +1,65 @@
+.player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.playBtn {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.18s, transform 0.12s;
+}
+
+.playBtn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.06);
+}
+
+.playBtn:active {
+  transform: scale(0.96);
+}
+
+.progressBar {
+  flex: 1;
+  cursor: pointer;
+  padding: 8px 0;
+}
+
+.progressTrack {
+  height: 4px;
+  background: var(--border-subtle);
+  border-radius: 2px;
+  overflow: hidden;
+  transition: height 0.15s;
+}
+
+.progressBar:hover .progressTrack {
+  height: 6px;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.1s linear;
+}
+
+.timeDisplay {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  min-width: 72px;
+  text-align: right;
+}

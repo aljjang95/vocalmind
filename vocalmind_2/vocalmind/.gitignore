@@ -1,0 +1,61 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# Build
+build/
+dist/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Vercel
+.vercel/
+
+# Turbo
+.turbo/
+
+# TypeScript build info
+*.tsbuildinfo
+__pycache__/
+*.pyc
+backend/.venv/
+public/audio/*.wav
+backend/.claude-edit-count
+
+.vercel
+.claude-edit-count
+.claude-edit-count.lock
+backend/.coverage
+
+# Screenshots (dev artifacts)
+screenshots/
+auto-fix-shots/
+e2e-shots/
+verify-shots/
+*.png
+
+# Supabase temp
+supabase/.temp/
+
+# MCP config
+.mcp.json
