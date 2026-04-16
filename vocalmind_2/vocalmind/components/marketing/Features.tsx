@@ -92,6 +92,26 @@ export default function Features() {
           </p>
         </div>
 
+        {/* 비주얼 배너 */}
+        <div className="relative rounded-2xl overflow-hidden mb-16 h-[240px] md:h-[320px]">
+          <img
+            src="https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=1200&q=80"
+            alt="녹음 스튜디오"
+            loading="lazy"
+            className="w-full h-full object-cover brightness-[0.4] saturate-[0.7]"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-[var(--bg-base)]/80 via-transparent to-[var(--bg-base)]/80" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center px-6">
+              <p className="text-2xl md:text-3xl font-bold text-white leading-snug">
+                녹음 한 번이면<br />
+                <span className="text-[var(--accent-light)]">4부위 긴장</span>이 수치로 나옵니다
+              </p>
+              <p className="text-sm text-white/60 mt-3">후두 · 혀뿌리 · 턱 · 성구전환</p>
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {FEATURES.map((f) => (
             <GlowCard key={f.title} className="p-8">

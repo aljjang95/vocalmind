@@ -28,6 +28,25 @@ export default function Testimonials() {
   return (
     <section id="testimonials" className="py-24 border-t border-white/[0.06]">
       <div className="max-w-[1200px] mx-auto px-7">
+        {/* 섹션 구분 비주얼 배너 */}
+        <div className="relative rounded-2xl overflow-hidden mb-16 h-[200px] md:h-[260px]">
+          <img
+            src="https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1200&q=80"
+            alt="공연 무대"
+            loading="lazy"
+            className="w-full h-full object-cover brightness-[0.3] saturate-[0.5]"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-base)] via-transparent to-[var(--bg-base)]/60" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center px-6">
+              <p className="text-xl md:text-2xl font-bold text-white leading-snug">
+                &ldquo;왜 안 되는지&rdquo; 알게 된 순간,<br />
+                <span className="text-[var(--accent-light)]">목소리가 달라졌습니다</span>
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="section-head center reveal">
           <div className="section-kicker" style={{ justifyContent: 'center' }}>수강생 변화</div>
           <h2 className="section-title">
