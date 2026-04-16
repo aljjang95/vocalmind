@@ -7,7 +7,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr] gap-12 mb-12">
           <div className="col-span-1 sm:col-span-2 lg:col-span-1">
             <Link href="/" className="flex items-center gap-2.5 font-['Inter',sans-serif] text-base font-medium text-[var(--text)] no-underline">
-              <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-purple-600 rounded-[10px] flex items-center justify-center relative overflow-hidden shadow-[0_4px_16px_rgba(59,130,246,0.3),inset_0_1px_0_rgba(255,255,255,0.15)]">
+              <div className="w-9 h-9 bg-gradient-to-br from-[#5B8C6E] to-[#3A6B50] rounded-[10px] flex items-center justify-center relative overflow-hidden shadow-[0_4px_16px_rgba(91,140,110,0.3),inset_0_1px_0_rgba(255,255,255,0.15)]">
                 <svg className="relative z-[1] drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)]" width="20" height="20" viewBox="0 0 24 24" fill="none">
                   <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" fill="url(#flgr)" />
                   <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="rgba(255,255,255,0.7)" strokeWidth="1.5" strokeLinecap="round" />
@@ -20,7 +20,7 @@ export default function Footer() {
                   </defs>
                 </svg>
               </div>
-              <span className="flex gap-1.5"><strong className="font-extrabold tracking-[0.02em] bg-gradient-to-br from-blue-400 to-purple-400 bg-clip-text text-transparent">HLB</strong> 보컬스튜디오</span>
+              <span className="flex gap-1.5"><strong className="font-extrabold tracking-[0.02em] bg-gradient-to-br from-[#6EAA80] to-[#8CC6A0] bg-clip-text text-transparent">HLB</strong> 보컬스튜디오</span>
             </Link>
             <p className="text-sm text-[var(--text-muted)] mt-3 max-w-[280px] leading-[1.7]">7년 경력 보컬 트레이너의 커리큘럼과 AI가 결합된 차세대 보컬 트레이닝 플랫폼입니다. 당신의 목소리가 가진 진짜 가능성을 깨워드립니다.</p>
           </div>

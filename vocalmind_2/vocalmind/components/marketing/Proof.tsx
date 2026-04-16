@@ -8,8 +8,18 @@ const STATS = [
 
 export default function Proof() {
   return (
-    <section id="proof" className="py-24 border-b border-white/[0.06]">
-      <div className="max-w-[1200px] mx-auto px-7 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-8 md:gap-10">
+    <section id="proof" className="py-24 border-b border-white/[0.06] relative overflow-hidden">
+      {/* 배경 이미지 */}
+      <div className="absolute inset-0" aria-hidden="true">
+        <img
+          src="https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=1920&q=80"
+          alt=""
+          loading="lazy"
+          className="w-full h-full object-cover brightness-[0.08] saturate-[0.3]"
+        />
+      </div>
+
+      <div className="relative z-10 max-w-[1200px] mx-auto px-7 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-8 md:gap-10">
         {STATS.map((s) => (
           <div key={s.num} className="text-center py-2">
             <span

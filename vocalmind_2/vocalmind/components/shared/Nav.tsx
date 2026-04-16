@@ -100,7 +100,7 @@ export default function Nav() {
       >
         <div className="max-w-[1200px] mx-auto px-7 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 font-['Inter',sans-serif] text-[1.1rem] font-medium text-[var(--text)] no-underline tracking-[-0.01em]">
-            <div className="w-10 h-10 bg-gradient-to-br from-[#3B82F6] to-[#7C3AED] rounded-xl flex items-center justify-center relative overflow-hidden shadow-[0_4px_16px_rgba(59,130,246,0.3),inset_0_1px_0_rgba(255,255,255,0.15)]">
+            <div className="w-10 h-10 bg-gradient-to-br from-[#5B8C6E] to-[#3A6B50] rounded-xl flex items-center justify-center relative overflow-hidden shadow-[0_4px_16px_rgba(91,140,110,0.3),inset_0_1px_0_rgba(255,255,255,0.15)]">
               <svg className="relative z-[1] drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)]" width="22" height="22" viewBox="0 0 24 24" fill="none">
                 <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" fill="url(#lgr)" />
                 <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="rgba(255,255,255,0.7)" strokeWidth="1.5" strokeLinecap="round" />
@@ -113,7 +113,7 @@ export default function Nav() {
                 </defs>
               </svg>
             </div>
-            <span className="flex gap-[5px]"><strong className="font-extrabold tracking-[0.02em] bg-gradient-to-br from-[#60A5FA] to-[#A78BFA] bg-clip-text text-transparent">HLB</strong> 보컬스튜디오</span>
+            <span className="flex gap-[5px]"><strong className="font-extrabold tracking-[0.02em] bg-gradient-to-br from-[#6EAA80] to-[#8CC6A0] bg-clip-text text-transparent">HLB</strong> 보컬스튜디오</span>
           </Link>
 
           <ul className="hidden min-[960px]:flex items-center gap-2 list-none flex-nowrap overflow-hidden">

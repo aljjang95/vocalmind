@@ -12,14 +12,30 @@ export default function Pricing() {
   return (
     <section id="pricing" className="py-24">
       <div className="max-w-[1200px] mx-auto px-7">
+        {/* 비주얼 배너 */}
+        <div className="relative rounded-2xl overflow-hidden mb-14 h-[200px] md:h-[240px]">
+          <img
+            src="https://images.unsplash.com/photo-1571330735066-03aaa9429d89?w=1200&q=80"
+            alt="보컬 레슨"
+            loading="lazy"
+            className="w-full h-full object-cover brightness-[0.35] saturate-[0.5]"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-[var(--bg-base)]/70 via-transparent to-[var(--bg-base)]/70" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center px-6">
+              <p className="text-xl md:text-2xl font-bold text-white">
+                사설 레슨 1회 <span className="text-[var(--warning)]">5만원</span>
+              </p>
+              <p className="text-sm text-white/60 mt-2">발성전문반은 한 달 내내 AI 코칭</p>
+            </div>
+          </div>
+        </div>
+
         <div className="text-center mb-14">
           <div className="section-kicker" style={{ justifyContent: 'center' }}>요금제</div>
           <h2 className="section-title" style={{ textAlign: 'center' }}>
             오프라인 레슨 그대로,<br />온라인으로
           </h2>
-          <p className="text-[15px] text-[var(--text-secondary)] text-center mt-3 leading-relaxed">
-            사설 레슨 1회 평균 5만원. 발성전문반은 한 달 내내 AI 코칭.
-          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 items-start">
