@@ -4,8 +4,9 @@ import type { AvatarData } from '@/types';
 
 const PLACEHOLDER_URL = '/assets/avatar-items/placeholder-avatar.png';
 const MAX_REF_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
+const RUNWARE_API_URL = 'https://api.runware.ai/v1';
 
-function buildPrompt(voiceType: string | null, hasRefImage: boolean): string {
+function buildPrompt(voiceType: string | null): string {
   const basePrompt =
     'A charming K-pop style vocal singer character illustration, ' +
     'full body portrait, clean line art, flat color style, ' +
@@ -20,11 +21,7 @@ function buildPrompt(voiceType: string | null, hasRefImage: boolean): string {
   };
 
   const styleHint = voiceType ? (styleMap[voiceType] ?? '') : '';
-  const refHint = hasRefImage
-    ? 'Reference the facial features and personal style of the provided reference image, reimagined as a K-pop illustration character.'
-    : '';
-
-  return [basePrompt, styleHint, refHint].filter(Boolean).join(' ');
+  return [basePrompt, styleHint].filter(Boolean).join(' ');
 }
 
 // GET: 현재 유저의 아바타 조회
@@ -124,85 +121,69 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const hasRefImage = referenceImageBuffer !== null;
-  const prompt = buildPrompt(voiceType, hasRefImage);
+  const prompt = buildPrompt(voiceType);
 
   let finalImageUrl = PLACEHOLDER_URL;
 
-  const openaiKey = process.env.OPENAI_API_KEY;
-  if (openaiKey) {
+  const runwareKey = process.env.RUNWARE_API_KEY;
+  if (runwareKey) {
     try {
-      let openaiRes: Response;
+      const taskUUID = crypto.randomUUID();
 
+      // Runware FLUX 이미지 생성 (text-to-image / image-to-image)
+      const taskBody: Record<string, unknown> = {
+        taskType: 'imageInference',
+        taskUUID,
+        positivePrompt: prompt,
+        model: 'runware:101@1', // FLUX Schnell — $0.003/장
+        width: 1024,
+        height: 1024,
+        numberResults: 1,
+        outputType: 'URL',
+        outputFormat: 'PNG',
+      };
+
+      // 참고 이미지가 있으면 image-to-image
       if (referenceImageBuffer) {
-        // edit 엔드포인트: 참고 이미지 기반 생성
-        const editForm = new FormData();
-        const blob = new Blob([referenceImageBuffer], { type: referenceImageMime });
-        editForm.append('image', blob, `ref.${referenceImageMime.split('/')[1] ?? 'jpg'}`);
-        editForm.append('prompt', prompt);
-        editForm.append('model', 'gpt-image-1');
-        editForm.append('size', '1024x1024');
-        editForm.append('quality', 'low');
-        editForm.append('n', '1');
-
-        openaiRes = await fetch('https://api.openai.com/v1/images/edits', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${openaiKey}` },
-          body: editForm,
-        });
-      } else {
-        // generations 엔드포인트: 텍스트 프롬프트만
-        openaiRes = await fetch('https://api.openai.com/v1/images/generations', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${openaiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'gpt-image-1',
-            prompt,
-            quality: 'low',
-            size: '1024x1024',
-            n: 1,
-          }),
-        });
+        const base64 = Buffer.from(referenceImageBuffer).toString('base64');
+        taskBody.seedImage = `data:${referenceImageMime};base64,${base64}`;
+        taskBody.strength = 0.65;
       }
 
-      if (openaiRes.ok) {
-        const openaiData = await openaiRes.json() as {
-          data?: Array<{ url?: string; b64_json?: string }>;
+      const runwareRes = await fetch(RUNWARE_API_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${runwareKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify([taskBody]),
+      });
+
+      if (runwareRes.ok) {
+        const runwareData = await runwareRes.json() as {
+          data?: Array<{ imageURL?: string }>;
         };
 
-        const imageEntry = openaiData.data?.[0];
+        const imageUrl = runwareData.data?.[0]?.imageURL;
 
-        const saveToStorage = async (buf: ArrayBuffer): Promise<string | null> => {
-          const fileName = `${user.id}/base.png`;
-          const { data: uploadData } = await supabase.storage
-            .from('avatars')
-            .upload(fileName, buf, { contentType: 'image/png', upsert: true });
-          if (!uploadData) return null;
-          const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(fileName);
-          return urlData.publicUrl;
-        };
-
-        if (imageEntry?.url) {
-          const imgRes = await fetch(imageEntry.url);
+        if (imageUrl) {
+          // Runware URL 이미지를 Supabase Storage에 저장
+          const imgRes = await fetch(imageUrl);
           if (imgRes.ok) {
-            const saved = await saveToStorage(await imgRes.arrayBuffer());
-            if (saved) finalImageUrl = saved;
+            const buf = await imgRes.arrayBuffer();
+            const fileName = `${user.id}/base.png`;
+            const { data: uploadData } = await supabase.storage
+              .from('avatars')
+              .upload(fileName, buf, { contentType: 'image/png', upsert: true });
+            if (uploadData) {
+              const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(fileName);
+              finalImageUrl = urlData.publicUrl;
+            }
           }
-        } else if (imageEntry?.b64_json) {
-          const binaryStr = atob(imageEntry.b64_json);
-          const bytes = new Uint8Array(binaryStr.length);
-          for (let i = 0; i < binaryStr.length; i++) {
-            bytes[i] = binaryStr.charCodeAt(i);
-          }
-          const saved = await saveToStorage(bytes.buffer);
-          if (saved) finalImageUrl = saved;
         }
       }
     } catch {
-      // OpenAI 실패 시 placeholder 사용
+      // Runware 실패 시 placeholder 사용
     }
   }
 
