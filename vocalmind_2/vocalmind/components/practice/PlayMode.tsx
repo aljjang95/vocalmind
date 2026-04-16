@@ -277,11 +277,6 @@ export default function PlayMode({ song }: Props) {
         )}
       </div>
 
-      {/* Lyrics placeholder */}
-      <div className="flex items-center justify-center px-4 py-8 bg-[var(--surface)] rounded-md border border-dashed border-[var(--border)] min-h-[80px]">
-        <span className="text-sm text-[var(--muted)]">가사 표시 영역 (향후 업데이트)</span>
-      </div>
-
       {/* Progress */}
       {phase === 'playing' && (
         <div className="flex flex-col gap-1.5">

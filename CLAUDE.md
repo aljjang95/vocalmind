@@ -49,7 +49,7 @@ vocalmind_2/vocalmind/
 │   ├── scale-practice/        # 스케일 연습 (자동레슨+자유연습)
 │   │   └── [stageId]/         # 단계별 스케일 연습 공간
 │   ├── coach/                 # AI 코치 (채팅 인터페이스)
-│   ├── coaching/              # 코칭 통합 (커리큘럼트리+세션)
+│   ├── coaching/              # 코칭 → /coach 리다이렉트
 │   ├── practice/              # 곡 연습 (분리+구간반복+피치비교)
 │   ├── breathing/             # 호흡 트레이너 (장호흡/리듬/프레이즈)
 │   ├── warmup/                # AI 워밍업 루틴 생성
@@ -63,9 +63,12 @@ vocalmind_2/vocalmind/
 │   ├── community/             # 커뮤니티 피드 (커버/배틀/자유 + 투표)
 │   │   └── [postId]/          # 게시글 상세
 │   ├── audition/              # 주간 오디션 (참가 + 투표 + 리더보드)
-│   ├── checkout/[plan]/       # 토스페이먼츠 결제 위젯 (구독+아이템)
-│   ├── payment/success/       # 결제 성공 처리
+│   ├── checkout/[plan]/       # 토스페이먼츠 결제 위젯 (구독)
+│   ├── checkout/item/         # 토스페이먼츠 아이템 결제 (?id=itemId)
+│   ├── payment/success/       # 결제 성공 처리 (플랜+아이템 분기)
 │   ├── payment/fail/          # 결제 실패 안내
+│   ├── terms/                 # 이용약관
+│   ├── privacy/               # 개인정보처리방침
 │   ├── teacher/               # 선생님 대시보드 (피드백 요청 관리)
 │   ├── vocal-report/          # 주간 보컬 리포트
 │   └── api/

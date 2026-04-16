@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { IconYoutube, IconInstagram, IconTiktok, IconTwitter } from '@/components/shared/Icons';
 
 export default function Footer() {
   return (
@@ -30,34 +29,25 @@ export default function Footer() {
             <h4 className="font-['JetBrains_Mono',monospace] text-[0.72rem] font-medium tracking-[0.12em] uppercase text-[var(--text-secondary)] mb-4">서비스</h4>
             <a href="#features" className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent-light)] transition-colors mb-2.5 no-underline">기능 소개</a>
             <a href="#how" className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent-light)] transition-colors mb-2.5 no-underline">사용 방법</a>
-            <a href="#pricing" className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent-light)] transition-colors mb-2.5 no-underline">요금제</a>
-            <a href="#demo" className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent-light)] transition-colors mb-2.5 no-underline">AI 체험</a>
+            <Link href="/pricing" className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent-light)] transition-colors mb-2.5 no-underline">요금제</Link>
+            <Link href="/onboarding" className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent-light)] transition-colors mb-2.5 no-underline">무료 상담</Link>
           </div>
 
           <div className="flex flex-col">
-            <h4 className="font-['JetBrains_Mono',monospace] text-[0.72rem] font-medium tracking-[0.12em] uppercase text-[var(--text-secondary)] mb-4">회사</h4>
-            <a href="#" className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent-light)] transition-colors mb-2.5 no-underline">트레이너 소개</a>
-            <a href="#" className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent-light)] transition-colors mb-2.5 no-underline">블로그</a>
-            <a href="#" className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent-light)] transition-colors mb-2.5 no-underline">채용</a>
-            <a href="#" className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent-light)] transition-colors mb-2.5 no-underline">문의하기</a>
+            <h4 className="font-['JetBrains_Mono',monospace] text-[0.72rem] font-medium tracking-[0.12em] uppercase text-[var(--text-secondary)] mb-4">지원</h4>
+            <a href="mailto:heartytn@naver.com" className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent-light)] transition-colors mb-2.5 no-underline">문의하기</a>
+            <Link href="/community" className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent-light)] transition-colors mb-2.5 no-underline">커뮤니티</Link>
           </div>
 
           <div className="flex flex-col">
             <h4 className="font-['JetBrains_Mono',monospace] text-[0.72rem] font-medium tracking-[0.12em] uppercase text-[var(--text-secondary)] mb-4">법적 고지</h4>
-            <a href="#" className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent-light)] transition-colors mb-2.5 no-underline">이용약관</a>
-            <a href="#" className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent-light)] transition-colors mb-2.5 no-underline">개인정보처리방침</a>
-            <a href="#" className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent-light)] transition-colors mb-2.5 no-underline">쿠키 정책</a>
+            <Link href="/terms" className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent-light)] transition-colors mb-2.5 no-underline">이용약관</Link>
+            <Link href="/privacy" className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent-light)] transition-colors mb-2.5 no-underline">개인정보처리방침</Link>
           </div>
         </div>
 
         <div className="flex items-center justify-between flex-wrap gap-3 pt-7 border-t border-white/[0.06]">
           <p className="text-xs text-[var(--text-dim)]">&copy; 2026 HLB 보컬스튜디오. All rights reserved.</p>
-          <div className="flex gap-2.5">
-            <a className="w-9 h-9 bg-white/[0.04] border border-white/[0.06] rounded-lg flex items-center justify-center no-underline text-[var(--text-secondary)] hover:bg-[var(--accent)]/20 hover:border-white/[0.12] transition-colors" href="#" title="YouTube" aria-label="YouTube"><IconYoutube size={16} /></a>
-            <a className="w-9 h-9 bg-white/[0.04] border border-white/[0.06] rounded-lg flex items-center justify-center no-underline text-[var(--text-secondary)] hover:bg-[var(--accent)]/20 hover:border-white/[0.12] transition-colors" href="#" title="Instagram" aria-label="Instagram"><IconInstagram size={16} /></a>
-            <a className="w-9 h-9 bg-white/[0.04] border border-white/[0.06] rounded-lg flex items-center justify-center no-underline text-[var(--text-secondary)] hover:bg-[var(--accent)]/20 hover:border-white/[0.12] transition-colors" href="#" title="TikTok" aria-label="TikTok"><IconTiktok size={16} /></a>
-            <a className="w-9 h-9 bg-white/[0.04] border border-white/[0.06] rounded-lg flex items-center justify-center no-underline text-[var(--text-secondary)] hover:bg-[var(--accent)]/20 hover:border-white/[0.12] transition-colors" href="#" title="Twitter" aria-label="Twitter"><IconTwitter size={16} /></a>
-          </div>
         </div>
       </div>
     </footer>

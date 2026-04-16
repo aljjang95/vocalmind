@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAvatarStore } from '@/stores/avatarStore';
 import type { ShopItem, ItemCategory } from '@/types';
 import ItemCard from './ItemCard';
@@ -19,6 +20,7 @@ const TABS: { key: TabKey; label: string }[] = [
 ];
 
 export default function ItemShop() {
+  const router = useRouter();
   const { shopItems, inventory, equipped, fetchShopItems, fetchInventory, fetchEquipped, equipItem } =
     useAvatarStore();
 
@@ -107,8 +109,9 @@ export default function ItemShop() {
       return;
     }
 
-    // 유료 아이템 — 토스 위젯으로 이동 (현재는 알림 표시)
-    setPayError('결제 시스템 준비 중입니다. /checkout 페이지를 이용해주세요.');
+    // 유료 아이템 — 아이템 결제 페이지로 이동
+    router.push(`/checkout/item?id=${pendingItem.id}`);
+    setPendingItem(null);
     setIsPaying(false);
   };
 

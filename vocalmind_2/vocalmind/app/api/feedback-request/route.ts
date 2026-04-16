@@ -53,11 +53,6 @@ export async function POST(request: NextRequest) {
     });
 
   if (dbError) {
-    // 테이블이 없을 수도 있음 — graceful fallback
-    if (dbError.code === '42P01') {
-      // 테이블 미존재 — 요청만 접수된 것으로 처리
-      return NextResponse.json({ success: true, message: '신청이 접수되었습니다 (DB 테이블 준비 중)' });
-    }
     return NextResponse.json(
       { error: '신청 저장에 실패했습니다', code: 'DB_ERROR' },
       { status: 500 },

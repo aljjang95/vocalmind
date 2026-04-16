@@ -21,6 +21,8 @@ export default function PaymentSuccessClient() {
     const paymentKey = searchParams.get('paymentKey');
     const orderId = searchParams.get('orderId');
     const amount = Number(searchParams.get('amount'));
+    const type = searchParams.get('type');
+    const itemId = searchParams.get('itemId');
 
     if (!paymentKey || !orderId || !amount) {
       setStatus('error');
@@ -28,6 +30,31 @@ export default function PaymentSuccessClient() {
       return;
     }
 
+    // 아이템 결제인 경우 /api/shop/purchase 호출
+    if (type === 'item' && itemId) {
+      fetch('/api/shop/purchase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId, paymentKey, orderId, amount }),
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.success) {
+            setPlan('item');
+            setStatus('done');
+          } else {
+            setStatus('error');
+            setErrorMsg(data.error || '아이템 구매 실패');
+          }
+        })
+        .catch(() => {
+          setStatus('error');
+          setErrorMsg('네트워크 오류. 고객센터에 문의해주세요.');
+        });
+      return;
+    }
+
+    // 플랜 결제
     fetch('/api/payment/confirm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -76,10 +103,17 @@ export default function PaymentSuccessClient() {
       <div className="w-16 h-16 rounded-full bg-green-100 text-green-600 text-[2rem] flex items-center justify-center">&#10003;</div>
       <h2 className="text-[1.75rem] font-bold text-[var(--text-primary)]">결제 완료!</h2>
       <p className="text-[var(--text-secondary)] text-base max-w-[360px]">
-        <strong>{PLAN_LABEL[plan] ?? plan}</strong> 플랜이 활성화되었습니다.
+        {plan === 'item'
+          ? '아이템이 인벤토리에 추가되었습니다!'
+          : <><strong>{PLAN_LABEL[plan] ?? plan}</strong> 플랜이 활성화되었습니다.</>
+        }
       </p>
       <div className="flex gap-3 flex-wrap justify-center">
-        {plan === 'feedback' ? (
+        {plan === 'item' ? (
+          <Button variant="default" onClick={() => router.push('/avatar')}>
+            아바타로 돌아가기
+          </Button>
+        ) : plan === 'feedback' ? (
           <Button variant="default" onClick={() => router.push('/feedback-request')}>
             녹음 제출하기
           </Button>
