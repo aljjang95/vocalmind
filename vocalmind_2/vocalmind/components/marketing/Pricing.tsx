@@ -12,22 +12,30 @@ export default function Pricing() {
   return (
     <section id="pricing" className="py-24">
       <div className="max-w-[1200px] mx-auto px-7">
-        {/* 비주얼 배너 */}
-        <div className="relative rounded-2xl overflow-hidden mb-14 h-[200px] md:h-[240px]">
+        {/* 비주얼 배너 — 가격 비교 */}
+        <div className="relative rounded-2xl overflow-hidden mb-14 h-auto md:h-[280px]">
           <img
             src="https://images.unsplash.com/photo-1571330735066-03aaa9429d89?w=1200&q=80"
             alt="보컬 레슨"
             loading="lazy"
-            className="w-full h-full object-cover brightness-[0.35] saturate-[0.5]"
+            className="absolute inset-0 w-full h-full object-cover brightness-[0.3] saturate-[0.5]"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-[var(--bg-base)]/70 via-transparent to-[var(--bg-base)]/70" />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center px-6">
-              <p className="text-xl md:text-2xl font-bold text-white">
-                사설 레슨 1회 <span className="text-[var(--warning)]">5만원</span>
-              </p>
-              <p className="text-sm text-white/60 mt-2">발성전문반은 한 달 내내 AI 코칭</p>
+          <div className="absolute inset-0 bg-gradient-to-r from-[var(--bg-base)]/80 via-transparent to-[var(--bg-base)]/80" />
+          <div className="relative z-10 flex flex-col items-center justify-center py-10 px-6 gap-6">
+            <p className="text-lg md:text-xl font-semibold text-white/70">사설 보컬 레슨</p>
+            <div className="flex items-center gap-4 md:gap-8 flex-wrap justify-center">
+              <div className="text-center">
+                <p className="text-2xl md:text-3xl font-bold text-white">월 <span className="text-[var(--error)]">40만원</span></p>
+                <p className="text-xs text-white/50 mt-1">주 1회 × 4회 기준</p>
+              </div>
+              <span className="text-2xl text-white/30 hidden md:block">→</span>
+              <span className="text-lg text-white/30 md:hidden">▼</span>
+              <div className="text-center">
+                <p className="text-2xl md:text-3xl font-bold text-[var(--accent-bright)]">월 15만원</p>
+                <p className="text-xs text-white/50 mt-1">매일, 무제한 AI 코칭</p>
+              </div>
             </div>
+            <p className="text-sm text-white/50 mt-1">같은 커리큘럼, 매일 연습, 1/3 가격</p>
           </div>
         </div>
 
