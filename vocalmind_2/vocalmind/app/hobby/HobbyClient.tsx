@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import UpsellBanner from '@/components/hobby/UpsellBanner';
 import Nav from '@/components/shared/Nav';
+import { useAudioRecorder } from '@/lib/hooks/useAudioRecorder';
 
 type FeedbackState = {
   score: number;
@@ -14,75 +15,48 @@ type FeedbackState = {
 } | null;
 
 export default function HobbyClient() {
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-  const [fileName, setFileName] = useState<string | null>(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
+  const [uploadedFile, setUploadedFile] = useState<{ blob: Blob; name: string } | null>(null);
   const [evaluating, setEvaluating] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  const {
+    isRecording,
+    elapsed,
+    blob: recordedBlob,
+    start,
+    stop,
+    reset: resetRecording,
+  } = useAudioRecorder({
+    maxSeconds: 120,
+    onError: (msg) => setError(msg),
+  });
 
-  const cleanup = useCallback(() => {
-    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-    if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null; }
-  }, []);
+  // 녹음 결과가 있으면 녹음 blob을, 아니면 업로드된 파일을 분석 대상으로 삼는다
+  const audioBlob = uploadedFile?.blob ?? recordedBlob;
+  const fileName = uploadedFile?.name ?? null;
 
   const startRecording = async () => {
     setError(null);
-    setAudioBlob(null);
-    setFileName(null);
+    setUploadedFile(null);
     setFeedback(null);
-    chunksRef.current = [];
-
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-      const recorder = new MediaRecorder(stream, {
-        mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-          ? 'audio/webm;codecs=opus' : 'audio/webm',
-      });
-      recorderRef.current = recorder;
-
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
-      recorder.onstop = () => {
-        setAudioBlob(new Blob(chunksRef.current, { type: 'audio/webm' }));
-        cleanup();
-      };
-
-      recorder.start(250);
-      setIsRecording(true);
-      setElapsed(0);
-      timerRef.current = setInterval(() => {
-        setElapsed(prev => {
-          if (prev + 1 >= 120) { recorderRef.current?.stop(); setIsRecording(false); }
-          return prev + 1;
-        });
-      }, 1000);
+      await start();
     } catch {
-      setError('마이크 권한을 허용해주세요.');
+      // onError에서 메시지 처리
     }
   };
 
   const stopRecording = () => {
-    if (recorderRef.current?.state === 'recording') {
-      recorderRef.current.stop();
-      setIsRecording(false);
-    }
+    stop();
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) { setError('10MB 이하 파일만 가능합니다.'); return; }
-    setAudioBlob(file);
-    setFileName(file.name);
+    resetRecording();
+    setUploadedFile({ blob: file, name: file.name });
     setFeedback(null);
     setError(null);
   };

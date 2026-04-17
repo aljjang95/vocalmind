@@ -1,48 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-// ── Rate Limit (인메모리) ───────────────────────────────────
-interface RateBucket { count: number; windowStart: number; }
-const RATE_STORE      = new Map<string, RateBucket>();
-const RATE_LIMIT      = 5;
-const RATE_WINDOW_MS  = 60_000;
-const GLOBAL_LIMIT    = 30;
-const GLOBAL_WINDOW_MS = 3600_000;
-let globalCount       = 0;
-let globalWindowStart = Date.now();
-
-function sanitizeIp(raw: string): string {
-  return raw.replace(/[^0-9a-fA-F.:]/g, '').slice(0, 45);
-}
-
-function getIp(req: NextRequest): string {
-  const raw = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-    ?? req.headers.get('x-real-ip')
-    ?? '127.0.0.1';
-  return sanitizeIp(raw);
-}
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  if (now - globalWindowStart > GLOBAL_WINDOW_MS) {
-    globalCount = 0;
-    globalWindowStart = now;
-  }
-  if (globalCount >= GLOBAL_LIMIT) return false;
-
-  const bucket = RATE_STORE.get(ip);
-  if (!bucket || now - bucket.windowStart > RATE_WINDOW_MS) {
-    RATE_STORE.set(ip, { count: 1, windowStart: now });
-  } else {
-    if (bucket.count >= RATE_LIMIT) return false;
-    bucket.count++;
-  }
-  globalCount++;
-  return true;
-}
+import { checkRateLimit, checkGlobalRateLimit } from '@/lib/services/rate-limiter';
 
 export async function POST(request: NextRequest) {
-  const ip = getIp(request);
-  if (!checkRateLimit(ip)) {
+  const rawIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    ?? request.headers.get('x-real-ip')
+    ?? '127.0.0.1';
+  const ip = rawIp.replace(/[^0-9a-fA-F.:]/g, '').slice(0, 45);
+
+  // 글로벌 rate limit (시간당 30회)
+  const { limited: globalLimited } = checkGlobalRateLimit({ limit: 30 });
+  if (globalLimited) {
+    return NextResponse.json(
+      { error: '서비스가 일시적으로 혼잡합니다. 잠시 후 다시 시도해주세요.', code: 'GLOBAL_RATE_LIMITED' },
+      { status: 503 },
+    );
+  }
+
+  // 분당 5회
+  const { limited } = checkRateLimit(ip, { limit: 5 });
+  if (limited) {
     return NextResponse.json(
       { error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.', code: 'RATE_LIMITED' },
       { status: 429 },

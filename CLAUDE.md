@@ -100,30 +100,37 @@ vocalmind_2/vocalmind/
 │       └── teacher/           # requests (피드백 요청 목록/상세)
 ├── backend/                   # Python FastAPI (긴장 감지 AI 엔진)
 │   ├── main.py                # FastAPI 앱 + CORS + 라우터 등록
+│   ├── schemas/               # [신규] Pydantic 응답 모델 (라우터에서 분리)
+│   │   ├── evaluate.py        # EvaluateResponse, ScalePracticeResponse, TensionDetail
+│   │   ├── onboarding.py      # OnboardingAnalyzeResponse, TTSRequest
+│   │   └── vocal_dna.py       # VocalDnaResponse
+│   ├── core/                  # [신규] 순수 도메인 로직 (I/O 없음)
+│   │   ├── pitch_extractor.py # extract_avg_pitch (2곳 중복 통합)
+│   │   └── voice_classifier.py # classify_voice_type
+│   ├── infra/                 # [신규] 외부 서비스 싱글톤 클라이언트
+│   │   ├── anthropic_client.py # complete() / complete_json() — 커넥션풀 재활용
+│   │   ├── chromadb_client.py  # search() — 싱글톤
+│   │   └── audio_upload.py     # save_and_convert() — 3곳 중복 통합
 │   ├── routers/
 │   │   ├── evaluate.py        # POST /evaluate + /evaluate/scale-practice
 │   │   ├── onboarding.py      # POST /onboarding/analyze + /onboarding/tts
 │   │   ├── ws_evaluate.py     # WS /ws/evaluate (실시간 2초 청크)
 │   │   ├── ws_scale.py        # WS /ws/scale (스케일 실시간)
 │   │   ├── coach.py           # POST /coach (RAG 코칭)
-│   │   └── vocal_dna.py       # POST /vocal-dna/analyze (5축 DNA 분석)
+│   │   └── vocal_dna.py       # POST /vocal-dna/analyze (core/ 위임)
 │   ├── services/
 │   │   ├── tension_analyzer.py    # Jitter/Shimmer/HNR/H1-H2/포먼트/성구전환
 │   │   ├── tension_scorer.py      # 4축 긴장 점수 (후두/혀뿌리/턱/성구)
 │   │   ├── audio_service.py       # parselmouth 음성 분석 통합
 │   │   ├── audio_utils.py         # FFmpeg WAV 변환 공용 유틸
-│   │   ├── scoring.py             # 피치 정확도 + 3단계 채점
-│   │   ├── realtime_analyzer.py   # 실시간 청크 분석 + 감각 피드백
-│   │   ├── session_report.py      # Claude Haiku 세션 종합 리포트
-│   │   ├── onboarding_service.py  # Claude Haiku 상담 (문제점+로드맵+폴백)
-│   │   ├── voice_feedback.py      # edge-tts 음성 합성 (ko-KR-SunHiNeural)
-│   │   └── rag_service.py         # ChromaDB RAG + Claude 감각 피드백 + 참고영상
-│   ├── scripts/
-│   │   └── map_feedback_to_stages.py  # ChromaDB→28단계 피드백 자동 매핑
-│   ├── data/
-│   │   └── stage_feedback_map.json    # 매핑 결과 (1850개→28단계)
+│   │   ├── scoring.py             # 피치 정확도 + 3단계 채점 (v1 제거됨)
+│   │   ├── realtime_analyzer.py   # 실시간 청크 분석 (core/ 위임)
+│   │   ├── session_report.py      # Claude Haiku 세션 리포트 (infra/ 싱글톤)
+│   │   ├── onboarding_service.py  # Claude Haiku 상담 (infra/ 싱글톤)
+│   │   ├── voice_feedback.py      # edge-tts 음성 합성
+│   │   └── rag_service.py         # ChromaDB RAG (infra/ 싱글톤)
 │   ├── models/tension.py      # TensionAnalysis, TensionScore Pydantic 모델
-│   └── tests/                 # 167개 테스트 (커버리지 95%)
+│   └── tests/                 # 164개 테스트
 ├── components/
 │   ├── ds/                    # 디자인 시스템 (Button, Card, MetricBar, ScoreDisplay, NavBar)
 │   ├── shared/                # Nav, Footer, Icons, TTSButton, Waveform, DemoAudioPlayer, ScrollReveal, AudioPlayer, UserProfileCard
@@ -137,9 +144,8 @@ vocalmind_2/vocalmind/
 │   ├── diagnosis/             # DiagnosisWizard, StepBasicInfo/Concerns/Goals/SelfEval, DiagnosisResult
 │   ├── practice/              # SongList, PlayMode, PitchDisplay, LyricsPanel, SessionResult
 │   ├── warmup/                # ConditionForm, RoutineView, ExercisePlayer, RoutineHistory
-│   ├── breathing/             # BreathVisualizer, BreathTimer, ModeSelector, WeeklyChart
+│   ├── breathing/             # BreathTimer(dispatcher) + Long/Rhythm/Phrase BreathTimer + BreathVisualizer, ModeSelector, WeeklyChart
 │   ├── ai-cover/              # AudioRecorder, FileDropZone, AudioPlayer
-│   ├── coaching/              # CurriculumTree, SessionInfo, CoachingLayout
 │   ├── vocal-dna/             # DnaCanvas, DnaCard, DnaShareButton
 │   ├── avatar/                # AvatarDisplay, AvatarEditor, ItemShop, ItemCard
 │   ├── community/             # FeedTabs, PostCard, PostComposer, VoteButton, RankingBoard
@@ -155,13 +161,18 @@ vocalmind_2/vocalmind/
 │   ├── breathingStore.ts      # 호흡 세션
 │   ├── diagnosisStore.ts      # 진단 위저드 (결과만 persist)
 │   ├── aiCoverStore.ts        # AI 커버 모델
-│   ├── coachingStore.ts       # 코칭 세션
 │   ├── billingStore.ts        # 요금제 플랜 관리
 │   ├── vocalDnaStore.ts       # 음색 DNA 5축 분석 결과
 │   ├── avatarStore.ts         # 아바타 + 인벤토리 + 장착 상태
 │   ├── communityStore.ts      # 커뮤니티 피드 (비persist)
 │   └── auditionStore.ts       # 오디션 이벤트/참가/투표 (비persist)
 ├── lib/
+│   ├── infra/                 # [신규] 프론트 인프라 레이어
+│   │   ├── auth.ts            # requireAuth() — 18곳 인증 중복 제거
+│   │   └── backend-client.ts  # Python 백엔드 프록시 (URL 중앙 관리)
+│   ├── services/              # [신규] 비즈니스 로직 공유 모듈
+│   │   ├── rate-limiter.ts    # checkRateLimit() — 9곳 450줄 중복 제거
+│   │   └── ai-parser.ts      # parseAiJsonResponse() — 8곳 파싱 중복 제거
 │   ├── anthropic.ts           # Anthropic 클라이언트 (server-only)
 │   ├── supabase/              # Supabase 서버/클라이언트
 │   ├── hooks/                 # useRealtimeEval, useTTS, useAudioPlayer, usePitchDetection, useScaleWebSocket, useDemoPitch, useYouTubePlayer
@@ -172,7 +183,16 @@ vocalmind_2/vocalmind/
 │   ├── data/faqDatabase.ts    # 13개 FAQ 자동 응답
 │   ├── audio/                 # 피치/호흡/멜로디 추출
 │   └── coach/                 # 피치 채점
-├── types/index.ts             # 전체 타입 (JourneyLessonPhase, OnboardingResult 등)
+├── types/                     # [리팩토링] 15개 도메인 파일 + 배럴 (665줄→분리)
+│   ├── index.ts               # 배럴 re-export (기존 import 100% 호환)
+│   ├── shared.ts              # ApiResponse, Plan, User
+│   ├── journey.ts             # StageProgress, LessonStage, JourneyLessonPhase
+│   ├── coach.ts               # ScalePattern, CoachFeedback, FeedbackMode
+│   ├── onboarding.ts          # OnboardingResult, TensionResult
+│   ├── community.ts           # CommunityPost, Vote, FeedTab
+│   ├── billing.ts             # BillingPlan, Subscription, PlanTier
+│   ├── avatar.ts              # AvatarData, ShopItem, InventoryItem
+│   └── ...                    # chat, analysis, diagnosis, practice, warmup, breathing, audition, vocal-dna
 ├── middleware.ts              # CSP nonce + Auth 라우트 보호
 └── scripts/dev.sh             # 프론트+백엔드 동시 실행
 ```
@@ -237,7 +257,6 @@ Frontend API (Next.js):
 | breathingStore | O | 호흡 세션 기록 |
 | diagnosisStore | O (result만) | 진단 위저드, 결과 |
 | aiCoverStore | O | AI 커버 모델 학습 상태 |
-| coachingStore | O | 코칭 세션 |
 | billingStore | X | 요금제 플랜 관리 |
 | vocalDnaStore | O (dna만) | 음색 DNA 5축 분석 결과 |
 | avatarStore | O (avatar, equipped) | 아바타 + 인벤토리 + 장착 |
@@ -311,6 +330,11 @@ parselmouth 기반으로 혀뿌리/턱/후두 긴장을 음성 신호에서 측�
 - voice_feedback.py MAX_CHARS=200 (TTS 텍스트 길이 제한)
 - requirements.txt 패키지명: `praat-parselmouth` (pip 이름) ≠ `parselmouth` (import 이름)
 - next.config.js Permissions-Policy: 녹음 기능에 `microphone=(self)` 필수 (기본값 차단)
+
+### Playwright Anti-Detection 가이드 (2026-04-16)
+현재 playwright 미사용 (의존성만 등록). 향후 브라우저 자동화 필요 시:
+`~/.claude/research/infra/anti-detection-migration-guide.md` 참조.
+검증된 스택: rebrowser-playwright + ghost-cursor + init script (광고모음 v3).
 
 
 ## Deployment

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { requireAuth, isAuthResult } from '@/lib/infra/auth';
 
 const PLAN_BY_AMOUNT: Record<number, 'hobby' | 'pro' | 'feedback'> = {
   100000: 'hobby',
@@ -45,23 +44,9 @@ export async function POST(req: NextRequest) {
   }
 
   // 2. Supabase — 유저 확인
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (list: Array<{ name: string; value: string; options?: Record<string, unknown> }>) =>
-          list.forEach(({ name, value, options }) => cookieStore.set(name, value, options as Parameters<typeof cookieStore.set>[2])),
-      },
-    },
-  );
-
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) {
-    return NextResponse.json({ error: '인증 필요' }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (!isAuthResult(auth)) return auth;
+  const { user, supabase } = auth;
 
   const plan = PLAN_BY_AMOUNT[amount];
   if (!plan) {

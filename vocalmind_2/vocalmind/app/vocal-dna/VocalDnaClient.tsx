@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useVocalDnaStore } from '@/stores/vocalDnaStore';
+import { useAudioRecorder } from '@/lib/hooks/useAudioRecorder';
 import DnaCard from '@/components/vocal-dna/DnaCard';
 import DnaShareButton from '@/components/vocal-dna/DnaShareButton';
 
@@ -17,97 +18,43 @@ export default function VocalDnaClient({ userName }: VocalDnaClientProps) {
     useVocalDnaStore();
   const axes = getDnaAxes();
 
-  // 녹음 상태
-  const [isRecording, setIsRecording] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
 
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  const {
+    isRecording,
+    elapsed,
+    blob: audioBlob,
+    start,
+    stop,
+    reset: resetRecording,
+  } = useAudioRecorder({ maxSeconds: MAX_SEC });
 
   useEffect(() => {
     fetchDna();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const cleanup = useCallback(() => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => () => cleanup(), [cleanup]);
-
   const startRecording = async () => {
     clearError();
-    setAudioBlob(null);
-    chunksRef.current = [];
-
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-
-      const recorder = new MediaRecorder(stream, {
-        mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-          ? 'audio/webm;codecs=opus'
-          : 'audio/webm',
-      });
-      recorderRef.current = recorder;
-
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
-
-      recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        setAudioBlob(blob);
-        cleanup();
-      };
-
-      recorder.start(250);
-      setIsRecording(true);
-      setElapsed(0);
-
-      timerRef.current = setInterval(() => {
-        setElapsed((prev) => {
-          const next = prev + 1;
-          if (next >= MAX_SEC) {
-            recorderRef.current?.stop();
-            setIsRecording(false);
-          }
-          return next;
-        });
-      }, 1000);
+      await start();
     } catch {
-      // MediaRecorder 오류는 store error 대신 직접 처리 (마이크 권한)
+      // 권한 거부는 조용히 처리 (버튼 클릭 시 시스템 토스트가 이미 표시)
     }
   };
 
   const stopRecording = () => {
-    if (recorderRef.current && recorderRef.current.state === 'recording') {
-      recorderRef.current.stop();
-      setIsRecording(false);
-    }
+    stop();
   };
 
   const handleAnalyze = async () => {
     if (!audioBlob || elapsed < MIN_SEC) return;
     await analyzeDna(audioBlob);
-    setAudioBlob(null);
-    setElapsed(0);
+    resetRecording();
   };
 
   const handleReanalyze = () => {
-    setAudioBlob(null);
-    setElapsed(0);
+    resetRecording();
     clearError();
   };
 

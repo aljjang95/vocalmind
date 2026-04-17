@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { anthropic, Anthropic } from '@/lib/anthropic';
+import { anthropic, Anthropic, cachedSystem } from '@/lib/anthropic';
 import { VOCAL_COACH_SYSTEM_PROMPT } from '@/lib/prompts/vocal-coach';
 import { matchFaq } from '@/lib/data/faqDatabase';
 import { ChatResponse, ApiError } from '@/types';
+import { checkRateLimit, checkGlobalRateLimit } from '@/lib/services/rate-limiter';
 
 // ── AI 설정 상수 ────────────────────────────────────────────
 const AI_MODEL      = process.env.AI_MODEL ?? 'claude-haiku-4-5-20251001';
@@ -11,56 +12,6 @@ const AI_MAX_TOKENS = 1000;
 // ── 입력 상한 상수 ──────────────────────────────────────────
 const MAX_CONTENT_LENGTH = 2000;  // 메시지 1개당 최대 글자 수
 const MAX_MESSAGES       = 20;   // 히스토리 최대 개수 (전체 턴 기준)
-
-// ── Rate Limit ──────────────────────────────────────────────
-// ⚠️ 인메모리 구현: 단일 Node 프로세스 환경에서만 유효합니다.
-// 프로덕션(Vercel 서버리스)에서는 함수 인스턴스마다 메모리가 초기화되므로
-// Upstash Redis / Vercel KV 기반 rate limiter로 반드시 교체하세요.
-// 참고: https://upstash.com/docs/redis/sdks/ratelimit-ts/overview
-interface RateBucket { count: number; windowStart: number; }
-const RATE_STORE      = new Map<string, RateBucket>();
-const RATE_LIMIT      = 20;
-const RATE_WINDOW_MS  = 60_000;
-const RATE_STORE_MAX  = 10_000;  // 메모리 누수 방지: 최대 엔트리 수
-const SWEEP_INTERVAL  = 60_000;  // 만료 엔트리 정리 주기
-let lastSweep         = Date.now();
-
-// ── 글로벌 Rate Limit (전체 서버 기준) ─────────────────────
-// 분산 공격 시 Anthropic API 과금 폭탄 방지
-const GLOBAL_LIMIT        = 200;   // 시간당 전체 요청 상한
-const GLOBAL_WINDOW_MS    = 3600_000;
-let globalCount           = 0;
-let globalWindowStart     = Date.now();
-
-function sweepExpired(now: number): void {
-  if (now - lastSweep < SWEEP_INTERVAL) return;
-  lastSweep = now;
-  RATE_STORE.forEach((bucket, key) => {
-    if (now - bucket.windowStart > RATE_WINDOW_MS) {
-      RATE_STORE.delete(key);
-    }
-  });
-}
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  sweepExpired(now);
-
-  // 맵 크기 상한 초과 시 가장 오래된 엔트리부터 삭제
-  if (RATE_STORE.size >= RATE_STORE_MAX) {
-    const firstKey = RATE_STORE.keys().next().value;
-    if (firstKey !== undefined) RATE_STORE.delete(firstKey);
-  }
-
-  const bucket = RATE_STORE.get(ip);
-  if (!bucket || now - bucket.windowStart > RATE_WINDOW_MS) {
-    RATE_STORE.set(ip, { count: 1, windowStart: now });
-    return false;
-  }
-  if (bucket.count >= RATE_LIMIT) return true;
-  bucket.count += 1;
-  return false;
-}
 
 // ── 메시지 유효성 검증 헬퍼 ────────────────────────────────
 type ValidMessage = { role: 'user' | 'assistant'; content: string };
@@ -137,20 +88,16 @@ export async function POST(
     'unknown';
 
   // 글로벌 rate limit 체크 (분산 공격 대응)
-  const now = Date.now();
-  if (now - globalWindowStart > GLOBAL_WINDOW_MS) {
-    globalCount = 0;
-    globalWindowStart = now;
-  }
-  globalCount += 1;
-  if (globalCount > GLOBAL_LIMIT) {
+  const { limited: globalLimited } = checkGlobalRateLimit({ limit: 200 });
+  if (globalLimited) {
     return NextResponse.json(
       { error: '서비스가 일시적으로 혼잡합니다. 잠시 후 다시 시도해주세요.', code: 'GLOBAL_RATE_LIMITED' },
       { status: 503 }
     );
   }
 
-  if (checkRateLimit(ip)) {
+  const { limited } = checkRateLimit(ip, { limit: 20, storeMax: 10_000 });
+  if (limited) {
     return NextResponse.json(
       { error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.', code: 'RATE_LIMITED' },
       { status: 429 }
@@ -190,7 +137,7 @@ export async function POST(
     const response = await anthropic.messages.create({
       model: AI_MODEL,
       max_tokens: AI_MAX_TOKENS,
-      system: VOCAL_COACH_SYSTEM_PROMPT,
+      system: cachedSystem(VOCAL_COACH_SYSTEM_PROMPT),
       messages,
     });
 

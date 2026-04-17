@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { requireAuth, isAuthResult } from '@/lib/infra/auth';
 
 const TEACHER_EMAIL = process.env.TEACHER_EMAIL;
 const BUCKET = 'demo-audio';
@@ -11,9 +11,10 @@ const ALLOWED_TYPES = ['audio/wav', 'audio/mpeg', 'audio/ogg', 'audio/webm', 'au
  * POST /api/demo-audio — 시범 오디오 업로드 (선생님 전용)
  */
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user || user.email !== TEACHER_EMAIL) {
+  const auth = await requireAuth();
+  if (!isAuthResult(auth)) return auth;
+  const { user, supabase } = auth;
+  if (user.email !== TEACHER_EMAIL) {
     return NextResponse.json({ error: '권한이 없습니다' }, { status: 403 });
   }
 
@@ -67,9 +68,10 @@ export async function POST(request: NextRequest) {
  * GET /api/demo-audio — 28단계 시범 오디오 등록 현황 (선생님 전용)
  */
 export async function GET() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user || user.email !== TEACHER_EMAIL) {
+  const auth = await requireAuth();
+  if (!isAuthResult(auth)) return auth;
+  const { user, supabase } = auth;
+  if (user.email !== TEACHER_EMAIL) {
     return NextResponse.json({ error: '권한이 없습니다' }, { status: 403 });
   }
 

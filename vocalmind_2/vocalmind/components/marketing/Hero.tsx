@@ -24,7 +24,7 @@ export default function Hero() {
       <div className="absolute inset-0 bg-gradient-to-b from-[var(--bg-base)] via-transparent to-[var(--bg-base)] z-[1]" />
 
       <div className="relative z-10 text-center max-w-4xl mx-auto px-7" ref={ref}>
-        <h1 className="font-[family-name:var(--font-display)] text-[clamp(2.75rem,5vw,4rem)] font-light text-[var(--text-primary)] leading-[1.05] tracking-[-0.03em]">
+        <h1 className="font-[family-name:var(--font-display)] text-[clamp(2.75rem,5vw,4rem)] font-light text-[var(--text-primary)] leading-[1.25] tracking-[-0.03em]">
           목이 조이는 이유,
           <br />
           <em

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useAudioRecorder } from '@/lib/hooks/useAudioRecorder';
 
 type Phase = 'idle' | 'recording' | 'analyzing' | 'result';
 
@@ -53,51 +54,10 @@ export default function VocalReportClient() {
   const [phase, setPhase] = useState<Phase>('idle');
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState('');
-  const [elapsed, setElapsed] = useState(0);
 
-  const mediaRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const startRecording = useCallback(async () => {
-    setError('');
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-      const mr = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-      chunksRef.current = [];
-      mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-      mr.start(200);
-      mediaRef.current = mr;
-      setPhase('recording');
-      setElapsed(0);
-      timerRef.current = setInterval(() => setElapsed((n) => n + 1), 1000);
-    } catch {
-      setError('마이크 권한이 필요합니다');
-    }
-  }, []);
-
-  const stopAndAnalyze = useCallback(async () => {
-    if (!mediaRef.current) return;
-    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-
-    const mr = mediaRef.current;
-    mr.stop();
-    setPhase('analyzing');
-
-    await new Promise<void>((resolve) => {
-      mr.onstop = () => {
-        streamRef.current?.getTracks().forEach((t) => t.stop());
-        streamRef.current = null;
-        resolve();
-      };
-    });
-
-    const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+  const analyzeBlob = useCallback(async (blob: Blob) => {
     const fd = new FormData();
     fd.append('audio', blob, 'recording.webm');
-
     try {
       const res = await fetch('/api/onboarding-analyze', { method: 'POST', body: fd });
       if (!res.ok) throw new Error('분석 실패');
@@ -110,12 +70,35 @@ export default function VocalReportClient() {
     }
   }, []);
 
+  const { isRecording, elapsed, start, stop, reset: resetRecording } = useAudioRecorder({
+    mimeType: 'audio/webm',
+    timesliceMs: 200,
+    onComplete: (blob) => analyzeBlob(blob),
+    onError: () => setError('마이크 권한이 필요합니다'),
+  });
+
+  const startRecording = useCallback(async () => {
+    setError('');
+    try {
+      await start();
+      setPhase('recording');
+    } catch {
+      // onError에서 처리
+    }
+  }, [start]);
+
+  const stopAndAnalyze = useCallback(() => {
+    if (!isRecording) return;
+    setPhase('analyzing');
+    stop(); // onComplete에서 analyzeBlob 호출
+  }, [isRecording, stop]);
+
   const reset = useCallback(() => {
     setPhase('idle');
     setResult(null);
     setError('');
-    setElapsed(0);
-  }, []);
+    resetRecording();
+  }, [resetRecording]);
 
   return (
     <div className="min-h-screen bg-[var(--bg-base)] text-white flex items-start justify-center p-12 max-sm:p-6">

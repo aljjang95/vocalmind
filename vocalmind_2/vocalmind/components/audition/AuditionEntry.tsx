@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuditionStore } from '@/stores/auditionStore';
+import { useAudioRecorder } from '@/lib/hooks/useAudioRecorder';
 import AudioPlayer from '@/components/shared/AudioPlayer';
 import styles from './AuditionEntry.module.css';
 
@@ -21,38 +22,33 @@ function formatTime(sec: number): string {
 export default function AuditionEntry() {
   const { submitEntry, myEntry, isLoading } = useAuditionStore();
 
-  const [isRecording, setIsRecording] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  const {
+    isRecording,
+    elapsed,
+    blob: audioBlob,
+    start,
+    stop,
+    reset: resetRecording,
+  } = useAudioRecorder({
+    maxSeconds: MAX_REC_SEC,
+    onError: (msg) => setError(msg),
+  });
 
-  const cleanup = useCallback(() => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => () => cleanup(), [cleanup]);
-
-  // previewUrl cleanup
+  // audioBlob이 변하면 preview URL 재생성 (이전 URL revoke)
   useEffect(() => {
-    return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-    };
-  }, [previewUrl]);
+    if (!audioBlob) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(audioBlob);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [audioBlob]);
 
   // myEntry가 설정되면 참가 완료 상태로 전환
   useEffect(() => {
@@ -61,64 +57,20 @@ export default function AuditionEntry() {
 
   const startRecording = async () => {
     setError(null);
-    setAudioBlob(null);
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
-    }
-    chunksRef.current = [];
-
+    resetRecording();
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus'
-        : 'audio/webm';
-
-      const recorder = new MediaRecorder(stream, { mimeType });
-      recorderRef.current = recorder;
-
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
-
-      recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        setAudioBlob(blob);
-        const url = URL.createObjectURL(blob);
-        setPreviewUrl(url);
-        cleanup();
-      };
-
-      recorder.start(250);
-      setIsRecording(true);
-      setElapsed(0);
-
-      timerRef.current = setInterval(() => {
-        setElapsed((prev) => {
-          const next = prev + 1;
-          if (next >= MAX_REC_SEC) {
-            recorderRef.current?.stop();
-            setIsRecording(false);
-          }
-          return next;
-        });
-      }, 1000);
+      await start();
     } catch {
-      setError('마이크 권한을 허용해주세요.');
+      // onError에서 처리
     }
   };
 
   const stopRecording = () => {
-    if (recorderRef.current?.state === 'recording') {
-      if (elapsed < MIN_REC_SEC) {
-        setError(`최소 ${MIN_REC_SEC}초 이상 녹음해주세요. (현재 ${elapsed}초)`);
-        return;
-      }
-      recorderRef.current.stop();
-      setIsRecording(false);
+    if (isRecording && elapsed < MIN_REC_SEC) {
+      setError(`최소 ${MIN_REC_SEC}초 이상 녹음해주세요. (현재 ${elapsed}초)`);
+      return;
     }
+    stop();
   };
 
   const handleSubmit = async () => {
@@ -141,15 +93,8 @@ export default function AuditionEntry() {
   };
 
   const handleReset = () => {
-    setAudioBlob(null);
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
-    }
-    setElapsed(0);
+    resetRecording();
     setError(null);
-    setIsRecording(false);
-    cleanup();
   };
 
   if (submitted || myEntry) {

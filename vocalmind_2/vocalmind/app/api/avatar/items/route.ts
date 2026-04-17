@@ -1,18 +1,12 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { requireAuth, isAuthResult } from '@/lib/infra/auth';
 import type { ShopItem } from '@/types';
 
 // GET: 상점 아이템 목록 조회 (시즌 만료 제외)
 export async function GET() {
-  const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    return NextResponse.json(
-      { error: '로그인이 필요합니다', code: 'UNAUTHORIZED' },
-      { status: 401 },
-    );
-  }
+  const auth = await requireAuth();
+  if (!isAuthResult(auth)) return auth;
+  const { supabase } = auth;
 
   const now = new Date().toISOString();
 

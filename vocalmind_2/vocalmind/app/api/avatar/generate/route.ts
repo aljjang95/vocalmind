@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { requireAuth, isAuthResult } from '@/lib/infra/auth';
 import type { AvatarData } from '@/types';
 
 const PLACEHOLDER_URL = '/assets/avatar-items/placeholder-avatar.png';
@@ -26,15 +26,9 @@ function buildPrompt(voiceType: string | null): string {
 
 // GET: 현재 유저의 아바타 조회
 export async function GET() {
-  const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    return NextResponse.json(
-      { error: '로그인이 필요합니다', code: 'UNAUTHORIZED' },
-      { status: 401 },
-    );
-  }
+  const auth = await requireAuth();
+  if (!isAuthResult(auth)) return auth;
+  const { user, supabase } = auth;
 
   const { data, error } = await supabase
     .from('avatars')
@@ -56,15 +50,9 @@ export async function GET() {
 
 // POST: AI 아바타 생성 (voiceType + 선택적 referenceImage)
 export async function POST(req: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    return NextResponse.json(
-      { error: '로그인이 필요합니다', code: 'UNAUTHORIZED' },
-      { status: 401 },
-    );
-  }
+  const auth = await requireAuth();
+  if (!isAuthResult(auth)) return auth;
+  const { user, supabase } = auth;
 
   // FormData 또는 JSON 모두 지원
   let voiceType: string | null = null;

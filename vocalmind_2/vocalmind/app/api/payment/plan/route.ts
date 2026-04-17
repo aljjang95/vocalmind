@@ -1,25 +1,13 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { requireAuth, isAuthResult } from '@/lib/infra/auth';
 
 export async function GET() {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (list: Array<{ name: string; value: string; options?: Record<string, unknown> }>) =>
-          list.forEach(({ name, value, options }) => cookieStore.set(name, value, options as Parameters<typeof cookieStore.set>[2])),
-      },
-    },
-  );
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const auth = await requireAuth();
+  if (!isAuthResult(auth)) {
+    // 미로그인 시 free 플랜 반환 (401 대신)
     return NextResponse.json({ plan: 'free' });
   }
+  const { user, supabase } = auth;
 
   const { data } = await supabase
     .from('vocal_user_plans')

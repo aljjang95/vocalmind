@@ -1,50 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { anthropic, Anthropic } from '@/lib/anthropic';
+import { anthropic, Anthropic, cachedSystem } from '@/lib/anthropic';
 import { DIAGNOSIS_SYSTEM_PROMPT } from '@/lib/prompts/diagnosis';
 import { ApiError, DiagnosisRequest, DiagnosisResult, SelfEvalScores, ConcernKey } from '@/types';
+import { checkRateLimit, checkGlobalRateLimit } from '@/lib/services/rate-limiter';
 
 // ── AI 설정 ─────────────────────────────────────────────────
 const AI_MODEL      = process.env.AI_MODEL ?? 'claude-haiku-4-5-20251001';
 const AI_MAX_TOKENS = 1500;
-
-// ── Rate Limit (인메모리) ───────────────────────────────────
-interface RateBucket { count: number; windowStart: number; }
-const RATE_STORE      = new Map<string, RateBucket>();
-const RATE_LIMIT      = 5;         // 진단은 분당 5회로 제한
-const RATE_WINDOW_MS  = 60_000;
-const RATE_STORE_MAX  = 5_000;
-const SWEEP_INTERVAL  = 60_000;
-let lastSweep         = Date.now();
-
-const GLOBAL_LIMIT       = 100;
-const GLOBAL_WINDOW_MS   = 3600_000;
-let globalCount          = 0;
-let globalWindowStart    = Date.now();
-
-function sweepExpired(now: number): void {
-  if (now - lastSweep < SWEEP_INTERVAL) return;
-  lastSweep = now;
-  RATE_STORE.forEach((bucket, key) => {
-    if (now - bucket.windowStart > RATE_WINDOW_MS) RATE_STORE.delete(key);
-  });
-}
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  sweepExpired(now);
-  if (RATE_STORE.size >= RATE_STORE_MAX) {
-    const firstKey = RATE_STORE.keys().next().value;
-    if (firstKey !== undefined) RATE_STORE.delete(firstKey);
-  }
-  const bucket = RATE_STORE.get(ip);
-  if (!bucket || now - bucket.windowStart > RATE_WINDOW_MS) {
-    RATE_STORE.set(ip, { count: 1, windowStart: now });
-    return false;
-  }
-  if (bucket.count >= RATE_LIMIT) return true;
-  bucket.count += 1;
-  return false;
-}
 
 // ── 입력 검증 ───────────────────────────────────────────────
 const VALID_VOICE_TYPES = ['저음', '중음', '고음'] as const;
@@ -166,20 +128,17 @@ export async function POST(
     'unknown';
 
   // 글로벌 rate limit
-  const now = Date.now();
-  if (now - globalWindowStart > GLOBAL_WINDOW_MS) {
-    globalCount = 0;
-    globalWindowStart = now;
-  }
-  globalCount += 1;
-  if (globalCount > GLOBAL_LIMIT) {
+  const { limited: globalLimited } = checkGlobalRateLimit({ limit: 100 });
+  if (globalLimited) {
     return NextResponse.json(
       { error: '서비스가 일시적으로 혼잡합니다. 잠시 후 다시 시도해주세요.', code: 'GLOBAL_RATE_LIMITED' },
       { status: 503 }
     );
   }
 
-  if (checkRateLimit(ip)) {
+  // 진단은 분당 5회로 제한
+  const { limited } = checkRateLimit(ip, { limit: 5, storeMax: 5_000 });
+  if (limited) {
     return NextResponse.json(
       { error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.', code: 'RATE_LIMITED' },
       { status: 429 }
@@ -222,7 +181,7 @@ ${data.goal}
     const response = await anthropic.messages.create({
       model: AI_MODEL,
       max_tokens: AI_MAX_TOKENS,
-      system: DIAGNOSIS_SYSTEM_PROMPT,
+      system: cachedSystem(DIAGNOSIS_SYSTEM_PROMPT),
       messages: [{ role: 'user', content: userMessage }],
     });
 

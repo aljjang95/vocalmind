@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { anthropic } from '@/lib/anthropic';
-import { createClient } from '@/lib/supabase/server';
+import { anthropic, cachedSystem } from '@/lib/anthropic';
+import { requireAuth, isAuthResult } from '@/lib/infra/auth';
 
 const AI_MODEL = process.env.AI_MODEL ?? 'claude-haiku-4-5-20251001';
 
@@ -10,11 +10,8 @@ const AI_MODEL = process.env.AI_MODEL ?? 'claude-haiku-4-5-20251001';
  * body: { sessions: Array<{ date, score, tension, pitchAccuracy }>, period: "weekly" | "daily" }
  */
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) {
-    return NextResponse.json({ error: '로그인이 필요합니다', code: 'UNAUTHORIZED' }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (!isAuthResult(auth)) return auth;
 
   try {
     const body = await request.json() as {
@@ -41,9 +38,9 @@ export async function POST(request: NextRequest) {
     const response = await anthropic.messages.create({
       model: AI_MODEL,
       max_tokens: 500,
-      system: `당신은 7년 경력의 보컬 트레이너입니다. 학생의 연습 데이터를 보고 간결한 성장 리포트를 작성합니다.
+      system: cachedSystem(`당신은 7년 경력의 보컬 트레이너입니다. 학생의 연습 데이터를 보고 간결한 성장 리포트를 작성합니다.
 격려하되 솔직하게, 감각적 표현으로. JSON으로 응답하세요:
-{"summary": "한 줄 요약", "improvements": ["개선된 점"], "recommendations": ["다음 주 추천"]}`,
+{"summary": "한 줄 요약", "improvements": ["개선된 점"], "recommendations": ["다음 주 추천"]}`),
       messages: [{
         role: 'user',
         content: `${period === 'daily' ? '오늘' : '이번 주'} 연습 데이터:

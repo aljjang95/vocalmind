@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { requireAuth, isAuthResult } from '@/lib/infra/auth';
 import type { FeedTab, CommunityPost } from '@/types';
 
 const DEFAULT_LIMIT = 20;
 
-// GET /api/community — 피드 조회
+// GET /api/community — 피드 조회 (로그인 선택: 투표 여부 표시 목적)
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -127,14 +128,9 @@ export async function GET(request: NextRequest) {
 
 // POST /api/community — 게시글 작성
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json(
-      { error: '로그인이 필요합니다.', code: 'UNAUTHORIZED' },
-      { status: 401 },
-    );
-  }
+  const auth = await requireAuth();
+  if (!isAuthResult(auth)) return auth;
+  const { user, supabase } = auth;
 
   try {
     const formData = await request.formData();

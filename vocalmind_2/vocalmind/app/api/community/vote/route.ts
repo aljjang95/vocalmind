@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { requireAuth, isAuthResult } from '@/lib/infra/auth';
 
 // POST /api/community/vote — 투표
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json(
-      { error: '로그인이 필요합니다.', code: 'UNAUTHORIZED' },
-      { status: 401 },
-    );
-  }
+  const auth = await requireAuth();
+  if (!isAuthResult(auth)) return auth;
+  const { user, supabase } = auth;
 
   try {
     const body = await request.json() as { postId?: string };
@@ -53,15 +47,9 @@ export async function POST(request: NextRequest) {
 
 // DELETE /api/community/vote — 투표 취소
 export async function DELETE(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json(
-      { error: '로그인이 필요합니다.', code: 'UNAUTHORIZED' },
-      { status: 401 },
-    );
-  }
+  const auth = await requireAuth();
+  if (!isAuthResult(auth)) return auth;
+  const { user, supabase } = auth;
 
   try {
     const body = await request.json() as { postId?: string };

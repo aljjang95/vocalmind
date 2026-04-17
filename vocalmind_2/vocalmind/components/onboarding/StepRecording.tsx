@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { useOnboardingStore } from '@/stores/onboardingStore';
+import { useAudioRecorder } from '@/lib/hooks/useAudioRecorder';
 import { Button } from '@/components/ui/button';
 
 const MIN_SEC = 5;
@@ -12,84 +13,37 @@ const ACCEPTED_EXTS = ['.mp3', '.wav', '.m4a', '.webm'];
 export default function StepRecording() {
   const { setStep, setAnalyzing, setError, setResult } = useOnboardingStore();
 
-  const [isRecording, setIsRecording] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-  const [fileName, setFileName] = useState<string | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<{ blob: Blob; name: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [dragging, setDragging] = useState(false);
 
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  const {
+    isRecording,
+    elapsed,
+    blob: recordedBlob,
+    start,
+    stop,
+    reset: resetRecording,
+  } = useAudioRecorder({
+    maxSeconds: MAX_SEC,
+    onError: (msg) => setError(msg),
+  });
 
-  const cleanup = useCallback(() => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => {
-    return cleanup;
-  }, [cleanup]);
+  const audioBlob = uploadedFile?.blob ?? recordedBlob;
+  const fileName = uploadedFile?.name ?? null;
 
   const startRecording = async () => {
     setError(null);
-    setAudioBlob(null);
-    setFileName(null);
-    chunksRef.current = [];
-
+    setUploadedFile(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-
-      const recorder = new MediaRecorder(stream, {
-        mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-          ? 'audio/webm;codecs=opus'
-          : 'audio/webm',
-      });
-      recorderRef.current = recorder;
-
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
-
-      recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        setAudioBlob(blob);
-        cleanup();
-      };
-
-      recorder.start(250);
-      setIsRecording(true);
-      setElapsed(0);
-
-      timerRef.current = setInterval(() => {
-        setElapsed((prev) => {
-          const next = prev + 1;
-          if (next >= MAX_SEC) {
-            recorderRef.current?.stop();
-            setIsRecording(false);
-          }
-          return next;
-        });
-      }, 1000);
+      await start();
     } catch {
-      setError('마이크 권한을 허용해주세요.');
+      // onError에서 처리
     }
   };
 
   const stopRecording = () => {
-    if (recorderRef.current && recorderRef.current.state === 'recording') {
-      recorderRef.current.stop();
-      setIsRecording(false);
-    }
+    stop();
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -99,8 +53,8 @@ export default function StepRecording() {
       setError('파일 크기는 10MB 이하만 가능합니다.');
       return;
     }
-    setAudioBlob(file);
-    setFileName(file.name);
+    resetRecording();
+    setUploadedFile({ blob: file, name: file.name });
     setError(null);
   };
 
@@ -163,10 +117,10 @@ export default function StepRecording() {
       setError('파일 크기는 10MB 이하만 가능합니다.');
       return;
     }
-    setAudioBlob(file);
-    setFileName(file.name);
+    resetRecording();
+    setUploadedFile({ blob: file, name: file.name });
     setError(null);
-  }, [setError]);
+  }, [resetRecording, setError]);
 
   return (
     <div className="flex flex-col items-center gap-7 py-5 animate-[slideIn_0.4s_ease-out]">

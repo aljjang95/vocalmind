@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { requireAuth, isAuthResult } from '@/lib/infra/auth';
 import type { AuditionEvent, AuditionEntry } from '@/types';
 
 // GET /api/audition — 현재 active 이벤트 조회
@@ -118,15 +119,9 @@ export async function GET(request: NextRequest) {
 
 // POST /api/audition — 오디션 참가 (FormData)
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json(
-      { error: '로그인이 필요합니다.', code: 'UNAUTHORIZED' },
-      { status: 401 },
-    );
-  }
+  const auth = await requireAuth();
+  if (!isAuthResult(auth)) return auth;
+  const { user, supabase } = auth;
 
   try {
     const formData = await request.formData();

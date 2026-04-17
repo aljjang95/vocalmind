@@ -1,17 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { requireAuth, isAuthResult } from '@/lib/infra/auth';
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-
-  // 인증 확인
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json(
-      { error: '로그인이 필요합니다', code: 'AUTH_REQUIRED' },
-      { status: 401 },
-    );
-  }
+  const auth = await requireAuth();
+  if (!isAuthResult(auth)) return auth;
+  const { user, supabase } = auth;
 
   const formData = await request.formData();
   const audio = formData.get('audio') as File | null;

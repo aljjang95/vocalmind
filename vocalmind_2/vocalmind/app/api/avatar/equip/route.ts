@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { requireAuth, isAuthResult } from '@/lib/infra/auth';
 import type { ItemCategory, UserEquipped } from '@/types';
 
 const CATEGORY_COLUMN: Record<ItemCategory, keyof Omit<UserEquipped, 'user_id' | 'updated_at'>> = {
@@ -13,15 +13,9 @@ const CATEGORY_COLUMN: Record<ItemCategory, keyof Omit<UserEquipped, 'user_id' |
 
 // GET: 현재 유저의 장착 상태 조회
 export async function GET() {
-  const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    return NextResponse.json(
-      { error: '로그인이 필요합니다', code: 'UNAUTHORIZED' },
-      { status: 401 },
-    );
-  }
+  const auth = await requireAuth();
+  if (!isAuthResult(auth)) return auth;
+  const { user, supabase } = auth;
 
   const { data, error } = await supabase
     .from('user_equipped')
@@ -41,15 +35,9 @@ export async function GET() {
 
 // POST: 아이템 장착 / 해제
 export async function POST(req: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    return NextResponse.json(
-      { error: '로그인이 필요합니다', code: 'UNAUTHORIZED' },
-      { status: 401 },
-    );
-  }
+  const auth = await requireAuth();
+  if (!isAuthResult(auth)) return auth;
+  const { user, supabase } = auth;
 
   const body = await req.json().catch(() => null) as {
     category?: ItemCategory;

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { requireAuth, isAuthResult } from '@/lib/infra/auth';
 import type { ShopItem } from '@/types';
 
 // POST: 아이템 구매 처리
@@ -7,15 +7,9 @@ import type { ShopItem } from '@/types';
 // 2) 토스페이먼츠 승인
 // 3) 구매 내역 + 인벤토리 저장
 export async function POST(req: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    return NextResponse.json(
-      { error: '로그인이 필요합니다', code: 'UNAUTHORIZED' },
-      { status: 401 },
-    );
-  }
+  const auth = await requireAuth();
+  if (!isAuthResult(auth)) return auth;
+  const { user, supabase } = auth;
 
   const body = await req.json().catch(() => null) as {
     itemId?: string;
