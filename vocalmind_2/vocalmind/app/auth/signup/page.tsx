@@ -22,7 +22,7 @@ export default function SignupPage() {
       provider,
       options: {
         redirectTo: `${window.location.origin}/auth/callback${nextUrl ? `?next=${encodeURIComponent(nextUrl)}` : ''}`,
-        ...(provider === 'kakao' && { scopes: 'profile_nickname profile_image' }),
+        ...(provider === 'kakao' && { scopes: 'profile_nickname profile_image account_email' }),
       },
     });
   };
