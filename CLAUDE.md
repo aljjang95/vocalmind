@@ -118,8 +118,14 @@ vocalmind_2/vocalmind/
 │   │   ├── ws_scale.py        # WS /ws/scale (스케일 실시간)
 │   │   ├── coach.py           # POST /coach (RAG 코칭)
 │   │   └── vocal_dna.py       # POST /vocal-dna/analyze (core/ 위임)
+│   ├── analyzers/             # [신규] 긴장 측정 도메인 서브패키지 (tension_analyzer 분해)
+│   │   ├── __init__.py        # analyze_tension() 엔트리 + composer
+│   │   ├── utils.py           # safe() NaN/Inf 가드 + load_audio()
+│   │   ├── voice_quality.py   # Jitter/Shimmer/HNR/H1-H2 (후두)
+│   │   ├── formant.py         # F1/F2/VSA (혀뿌리·턱)
+│   │   └── register.py        # F0 점프/smoothness (성구전환)
 │   ├── services/
-│   │   ├── tension_analyzer.py    # Jitter/Shimmer/HNR/H1-H2/포먼트/성구전환
+│   │   ├── tension_analyzer.py    # [얇은 재export] analyzers/ 위임 (backcompat)
 │   │   ├── tension_scorer.py      # 4축 긴장 점수 (후두/혀뿌리/턱/성구)
 │   │   ├── audio_service.py       # parselmouth 음성 분석 통합
 │   │   ├── audio_utils.py         # FFmpeg WAV 변환 공용 유틸
