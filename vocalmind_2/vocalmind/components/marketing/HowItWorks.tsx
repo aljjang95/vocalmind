@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import { IconLock, IconTarget, IconMic, IconChart } from '@/components/shared/Icons';
 import { GlowCard } from '@/components/ui/glow-card';
 
@@ -40,11 +41,13 @@ export default function HowItWorks() {
           {STEPS.map((step) => (
             <GlowCard key={step.num} className="p-0 overflow-hidden text-center">
               <div className="relative h-[140px] overflow-hidden">
-                <img
+                <Image
                   src={step.img}
                   alt={step.title}
+                  fill
+                  sizes="(max-width: 768px) 100vw, 300px"
                   loading="lazy"
-                  className="w-full h-full object-cover brightness-[0.5] saturate-[0.6]"
+                  className="object-cover brightness-[0.5] saturate-[0.6]"
                 />
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[var(--bg-raised)]" />
                 <div className="absolute inset-0 flex items-center justify-center">

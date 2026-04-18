@@ -32,6 +32,7 @@ export default function PronunciationView({ lyrics, currentSong, onUpdate }: Pro
       handleGenerate();
     }
     setShowPronunciation((prev) => !prev);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showPronunciation, hasPronunciation, lyrics.length]);
 
   const handleGenerate = useCallback(async () => {

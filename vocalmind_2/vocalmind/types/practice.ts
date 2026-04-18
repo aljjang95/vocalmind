@@ -16,6 +16,7 @@ export interface Song {
   separationStatus?: 'pending' | 'done' | 'failed';
   analysisStatus?: 'none' | 'analyzing' | 'done';
   keyShift?: number; // -6 ~ +6 반음
+  beatGridUrl?: string; // Supabase Storage song-beats/{id}.json URL (F2 리듬 분석)
 }
 
 export interface PracticeSession {

@@ -1,3 +1,5 @@
+import Image from 'next/image';
+
 const STATS = [
   { num: '28단계', label: '체계적 커리큘럼', sub: '이완 기초 → 실가창까지' },
   { num: '4축', label: '긴장 분석', sub: '후두·혀뿌리·턱·성구전환' },
@@ -11,11 +13,13 @@ export default function Proof() {
     <section id="proof" className="py-24 border-b border-white/[0.06] relative overflow-hidden">
       {/* 배경 이미지 */}
       <div className="absolute inset-0" aria-hidden="true">
-        <img
+        <Image
           src="https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=1920&q=80"
           alt=""
+          fill
+          sizes="100vw"
           loading="lazy"
-          className="w-full h-full object-cover brightness-[0.08] saturate-[0.3]"
+          className="object-cover brightness-[0.08] saturate-[0.3]"
         />
       </div>
 

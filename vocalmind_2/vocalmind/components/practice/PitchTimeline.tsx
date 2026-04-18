@@ -187,9 +187,9 @@ export default function PitchTimeline({ session, analysis }: PitchTimelineProps)
 
   const { setMode, setLoop, setShowResult } = usePracticeStore();
 
-  // Derived data
-  const referenceMelody = analysis?.melodyData ?? [];
-  const sections = analysis?.sections ?? [];
+  // Derived data — useMemo로 렌더마다 참조 변경 방지 (exhaustive-deps)
+  const referenceMelody = useMemo(() => analysis?.melodyData ?? [], [analysis]);
+  const sections = useMemo(() => analysis?.sections ?? [], [analysis]);
   const userPitch = session.userPitchData;
 
   const totalDuration = useMemo(() => {

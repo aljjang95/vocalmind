@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
         taskType: 'imageInference',
         taskUUID,
         positivePrompt: prompt,
-        model: 'runware:101@1', // FLUX Schnell — $0.003/장
+        model: 'runware:100@1', // FLUX.1 Schnell — ~$0.0006/장 (FAILURES #3, 2026-04-18)
         width: 1024,
         height: 1024,
         numberResults: 1,

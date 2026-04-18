@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useScrollReveal } from '@/lib/hooks/useScrollReveal';
 import { GlowCard } from '@/components/ui/glow-card';
 
@@ -94,11 +95,13 @@ export default function Features() {
 
         {/* 비주얼 배너 */}
         <div className="relative rounded-2xl overflow-hidden mb-16 h-[240px] md:h-[320px]">
-          <img
+          <Image
             src="https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=1200&q=80"
             alt="녹음 스튜디오"
+            fill
+            sizes="(max-width: 768px) 100vw, 1200px"
             loading="lazy"
-            className="w-full h-full object-cover brightness-[0.4] saturate-[0.7]"
+            className="object-cover brightness-[0.4] saturate-[0.7]"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-[var(--bg-base)]/80 via-transparent to-[var(--bg-base)]/80" />
           <div className="absolute inset-0 flex items-center justify-center">

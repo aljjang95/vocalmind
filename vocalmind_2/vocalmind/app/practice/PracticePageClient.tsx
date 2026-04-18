@@ -16,6 +16,9 @@ import PitchTimeline from '@/components/practice/PitchTimeline';
 import LyricsPanel from '@/components/practice/LyricsPanel';
 import SectionTabs from '@/components/practice/SectionTabs';
 import VocalMap from '@/components/practice/VocalMap';
+import RhythmToggle from '@/components/practice/RhythmToggle';
+import RhythmLiveIndicator from '@/components/practice/RhythmLiveIndicator';
+import RhythmScoreDisplay from '@/components/practice/RhythmScoreDisplay';
 
 export default function PracticePageClient() {
   const {
@@ -30,6 +33,7 @@ export default function PracticePageClient() {
     setCurrentAnalysis,
     setCurrentTime,
     setPlaying,
+    rhythmSession,
   } = usePracticeStore();
 
   const [uploaderCollapsed, setUploaderCollapsed] = useState(false);
@@ -109,9 +113,10 @@ export default function PracticePageClient() {
 
       <main className="relative z-[1] py-5 pb-10">
         <div className="max-w-[1400px] mx-auto px-5">
-          {/* Mode switcher at the top */}
-          <div className="mb-4">
+          {/* Mode switcher + 리듬 토글 */}
+          <div className="mb-4 flex items-center justify-between gap-3">
             <ModeSwitcher />
+            <RhythmToggle song={currentSong} />
           </div>
 
           <div className="grid grid-cols-[280px_1fr] gap-5 min-h-[calc(100vh-180px)] max-[900px]:grid-cols-1">
@@ -184,6 +189,18 @@ export default function PracticePageClient() {
                       analysis={currentAnalysis}
                     />
                   )}
+
+                  {/* 리듬 세션 결과 (Play 모드 후 표시) */}
+                  {showResult && rhythmSession && (
+                    <RhythmScoreDisplay
+                      session={rhythmSession}
+                      onJumpTo={(sectionIndex) => {
+                        if (currentAnalysis?.sections?.[sectionIndex]) {
+                          handleSeek(currentAnalysis.sections[sectionIndex].startTime);
+                        }
+                      }}
+                    />
+                  )}
                 </>
               ) : (
                 <div className="flex flex-col items-center justify-center gap-4 px-6 py-20 text-center bg-[var(--bg2)] border border-[var(--border)] rounded-xl">
@@ -204,6 +221,9 @@ export default function PracticePageClient() {
 
       {/* Session result overlay */}
       {showResult && <SessionResult />}
+
+      {/* 리듬 실시간 분류 배지 (fixed position) */}
+      <RhythmLiveIndicator />
     </>
   );
 }

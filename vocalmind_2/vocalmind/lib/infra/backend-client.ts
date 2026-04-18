@@ -85,6 +85,31 @@ export interface VocalDnaResponse {
   voice_type: string | null;
 }
 
+// ── F2: 리듬 분석 응답 타입 ─────────────────────────────────
+export interface RhythmAnalyzeBackendResponse {
+  rhythm_score: number;
+  coverage_ratio: number;
+  events: Array<{
+    onset_time_sec: number;
+    target_beat_time_sec: number | null;
+    error_ms: number | null;
+    classification: 'perfect' | 'good' | 'off' | 'miss' | 'ghost';
+    section_index: number;
+  }>;
+  section_scores: Array<{
+    section_index: number;
+    label: string;
+    score: number;
+    event_count: number;
+  }>;
+  problem_segments: Array<{
+    section_index: number;
+    label: string;
+    score: number;
+    event_count: number;
+  }>;
+}
+
 // ── 내부 헬퍼: 백엔드 fetch + 에러 정규화 ────────────────────
 async function backendFetch<T>(
   path: string,
@@ -217,6 +242,102 @@ export async function vocalDna(
   form.append('audio', audio, filename);
 
   return backendFetch<VocalDnaResponse>('/vocal-dna/analyze', {
+    method: 'POST',
+    body: form,
+  });
+}
+
+// ── F1: 호흡 분석 응답 타입 ──────────────────────────────────
+export interface BreathAnalyzeBackendResponse {
+  cycles: Array<{
+    inhale_start_sec: number;
+    inhale_end_sec: number;
+    exhale_end_sec: number;
+    inhale_duration_sec: number;
+    exhale_duration_sec: number;
+    exhale_stability: number;
+  }>;
+  avg_inhale_sec: number;
+  avg_exhale_sec: number;
+  consistency_score: number;
+  sustain_score: number;
+  stability_score: number;
+  overall_score: number;
+  duration_sec: number;
+  weakness: 'shallow' | 'unstable' | 'short' | 'none';
+}
+
+// ── F3: 오디션 AI 채점 응답 타입 ──────────────────────────────
+export interface AuditionScoreBackendResponse {
+  ai_score: number;
+  tension_score: number;
+  pitch_accuracy: number;
+  rhythm_score: number | null;
+  vote_score: number;
+  final_score: number;
+  alpha: number;
+  status: 'complete' | 'partial' | 'failed';
+}
+
+/**
+ * 호흡 분석 요청 (/breath/analyze).
+ */
+export async function breathAnalyze(
+  audio: File | Blob,
+  targetExhaleSec: number = 10.0,
+  filename = 'breath.webm',
+): Promise<BackendResult<BreathAnalyzeBackendResponse>> {
+  const form = new FormData();
+  form.append('audio', audio, filename);
+  form.append('target_exhale_sec', String(targetExhaleSec));
+
+  return backendFetch<BreathAnalyzeBackendResponse>('/breath/analyze', {
+    method: 'POST',
+    body: form,
+  });
+}
+
+/**
+ * 오디션 AI 채점 집계 (/audition/score).
+ */
+export async function auditionScore(input: {
+  tensionOverall: number;
+  pitchAccuracy: number;
+  rhythmScore?: number | null;
+  voteScore?: number;
+  alpha?: number;
+}): Promise<BackendResult<AuditionScoreBackendResponse>> {
+  return backendFetch<AuditionScoreBackendResponse>('/audition/score', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tension_overall: input.tensionOverall,
+      pitch_accuracy: input.pitchAccuracy,
+      rhythm_score: input.rhythmScore ?? null,
+      vote_score: input.voteScore ?? 0,
+      alpha: input.alpha ?? 0.3,
+    }),
+  });
+}
+
+/**
+ * 리듬 정확도 분석 요청 (/rhythm/analyze).
+ * WebSocket 세션 비사용 환경(단일 파일 재분석)에서 사용.
+ */
+export async function rhythmAnalyze(
+  audio: File | Blob,
+  beatGridJson: string,
+  outputLatencyMs: number = 0,
+  sectionsJson: string = '[]',
+  filename = 'recording.webm',
+): Promise<BackendResult<RhythmAnalyzeBackendResponse>> {
+  const form = new FormData();
+  form.append('audio', audio, filename);
+  form.append('beat_grid_json', beatGridJson);
+  form.append('output_latency_ms', String(outputLatencyMs));
+  form.append('sections_json', sectionsJson);
+
+  return backendFetch<RhythmAnalyzeBackendResponse>('/rhythm/analyze', {
     method: 'POST',
     body: form,
   });

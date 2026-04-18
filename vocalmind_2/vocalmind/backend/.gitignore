@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+dist/
+.env
+.coverage
+chroma_db/
+scripts/phase_b_samples/
+.coverage
+chroma_db/
+scripts/phase_b_samples/

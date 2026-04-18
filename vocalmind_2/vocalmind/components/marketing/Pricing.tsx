@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { GlowCard } from '@/components/ui/glow-card';
 
@@ -14,11 +15,13 @@ export default function Pricing() {
       <div className="max-w-[1200px] mx-auto px-7">
         {/* 비주얼 배너 — 가격 비교 */}
         <div className="relative rounded-2xl overflow-hidden mb-14 h-auto md:h-[280px]">
-          <img
+          <Image
             src="https://images.unsplash.com/photo-1571330735066-03aaa9429d89?w=1200&q=80"
             alt="보컬 레슨"
+            fill
+            sizes="(max-width: 768px) 100vw, 1200px"
             loading="lazy"
-            className="absolute inset-0 w-full h-full object-cover brightness-[0.3] saturate-[0.5]"
+            className="object-cover brightness-[0.3] saturate-[0.5]"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-[var(--bg-base)]/80 via-transparent to-[var(--bg-base)]/80" />
           <div className="relative z-10 flex flex-col items-center justify-center py-10 px-6 gap-6">

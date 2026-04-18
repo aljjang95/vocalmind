@@ -44,6 +44,8 @@ export interface SessionReport {
     min_tension: number;
     tension_events: number;
     main_issues: string[];
+    pitch_history?: number[];
+    voiced_ratio?: number;
   };
 }
 

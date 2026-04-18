@@ -401,6 +401,7 @@ parselmouth 기반으로 혀뿌리/턱/후두 긴장을 음성 신호에서 측�
 
 - **2026-04-18**: pytest/tsc 녹색만으로는 **값 불일치**(프론트·백엔드 상수 어긋남, 상수 이름-실체 어긋남) 감지 불가 — 품질 티어·모델 ID처럼 **숫자/문자열 정확성**이 핵심인 PR은 배포 전 반드시 실물 UI 스크린샷 1장 + 실 API 호출 1회로 대조할 것. 크루즈자동 메서드 이름 함정(2026-04-18) + 보컬마인드 STUDIO_TIERS 해상도 누락(FAILURES #2) + AIR 이름 의심(FAILURES #3)이 연달아 같은 뿌리
 - **2026-04-18**: Runware 같은 외부 모델 API 상수를 여러 프로젝트가 공유할 때 **AIR 문자열**만 truth source로 간주. 이름(SCHNELL/DEV)은 프로젝트마다 오명명 가능 — 글로벌 `~/.claude/projects/*/memory/reference_runware_air_catalog.md` 참조 후 검증
+- **2026-04-18**: FAILURES #3 검증/수정 완료 — 공식 Runware docs에서 `runware:100@1=Schnell` / `runware:101@1=Dev` 확정. 보컬마인드 카탈로그는 이전에 반대로 정의돼 있어 Draft 티어가 6배 단가 Dev를 호출했음. **재발 방지**: `test_flux_schnell_dev_air_values_not_swapped` 가드 테스트 박제 + 상수 주석에 공식 docs URL + 검증 일자 포함. 다음 AIR 추가 시 **이름 복붙 금지, 실 호출 검증 필수**
 
 
 ## Deployment

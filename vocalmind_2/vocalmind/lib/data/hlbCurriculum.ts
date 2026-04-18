@@ -30,7 +30,7 @@ export const hlbCurriculum: HLBCurriculumStage[] = [
     minTier: 'free',
     evaluationCriteria: {
       description: '혀/목/턱 이완 상태에서 소리 유지',
-      passingScore: 80,
+      passingScore: 70,
       metrics: ['tone_stability'],
     },
     somaticFeedback: {
@@ -54,7 +54,7 @@ export const hlbCurriculum: HLBCurriculumStage[] = [
     minTier: 'free',
     evaluationCriteria: {
       description: '혀가 내려가면서 후두가 자연스럽게 안정되는 상태 유지',
-      passingScore: 80,
+      passingScore: 70,
       metrics: ['tone_stability'],
     },
     somaticFeedback: {
@@ -78,7 +78,7 @@ export const hlbCurriculum: HLBCurriculumStage[] = [
     minTier: 'free',
     evaluationCriteria: {
       description: '이완 상태 유지하며 라운딩 스케일 연결',
-      passingScore: 80,
+      passingScore: 70,
       metrics: ['tone_stability', 'pitch_accuracy'],
     },
     somaticFeedback: {
@@ -104,7 +104,7 @@ export const hlbCurriculum: HLBCurriculumStage[] = [
     minTier: 'free',
     evaluationCriteria: {
       description: '배에 힘을 주는 게 아니라 압력이 형성되는 감각 인식',
-      passingScore: 80,
+      passingScore: 70,
       metrics: ['tone_stability'],
     },
     somaticFeedback: {
@@ -128,7 +128,7 @@ export const hlbCurriculum: HLBCurriculumStage[] = [
     minTier: 'pro',
     evaluationCriteria: {
       description: '성대 접촉의 기본 감각을 유지하며 허밍',
-      passingScore: 80,
+      passingScore: 70,
       metrics: ['tone_stability'],
     },
     somaticFeedback: {
@@ -152,7 +152,7 @@ export const hlbCurriculum: HLBCurriculumStage[] = [
     minTier: 'pro',
     evaluationCriteria: {
       description: '허밍 세팅 유지하며 복부 압력 확인',
-      passingScore: 80,
+      passingScore: 70,
       metrics: ['tone_stability'],
     },
     somaticFeedback: {
@@ -448,7 +448,7 @@ export const hlbCurriculum: HLBCurriculumStage[] = [
     minTier: 'pro',
     evaluationCriteria: {
       description: '최소한의 힘으로 성대가 접촉된 두성 소리 유지',
-      passingScore: 80,
+      passingScore: 85,
       metrics: ['tone_stability', 'pitch_accuracy'],
     },
     somaticFeedback: {
@@ -472,7 +472,7 @@ export const hlbCurriculum: HLBCurriculumStage[] = [
     minTier: 'pro',
     evaluationCriteria: {
       description: '선생님 소리를 따라하며 두성 감각 체득',
-      passingScore: 80,
+      passingScore: 85,
       metrics: ['tone_stability', 'pitch_accuracy'],
     },
     somaticFeedback: {
@@ -496,7 +496,7 @@ export const hlbCurriculum: HLBCurriculumStage[] = [
     minTier: 'pro',
     evaluationCriteria: {
       description: '이완으로 자연스럽게 성구전환이 일어나는 감각 체험',
-      passingScore: 80,
+      passingScore: 85,
       metrics: ['pitch_accuracy', 'tone_stability'],
     },
     somaticFeedback: {
@@ -520,7 +520,7 @@ export const hlbCurriculum: HLBCurriculumStage[] = [
     minTier: 'pro',
     evaluationCriteria: {
       description: '세팅 유지하며 \'마미무메모\' 발음 연결',
-      passingScore: 80,
+      passingScore: 85,
       metrics: ['tone_stability', 'pitch_accuracy'],
     },
     somaticFeedback: {
@@ -544,7 +544,7 @@ export const hlbCurriculum: HLBCurriculumStage[] = [
     minTier: 'pro',
     evaluationCriteria: {
       description: '풀스케일로 올라갔다 내려오며 음정 연결 유지',
-      passingScore: 80,
+      passingScore: 85,
       metrics: ['pitch_accuracy', 'tone_stability'],
     },
     somaticFeedback: {
@@ -570,7 +570,7 @@ export const hlbCurriculum: HLBCurriculumStage[] = [
     minTier: 'pro',
     evaluationCriteria: {
       description: '세팅을 준비한 후 고음으로 도약하기',
-      passingScore: 80,
+      passingScore: 85,
       metrics: ['pitch_accuracy', 'tone_stability'],
     },
     somaticFeedback: {
@@ -594,7 +594,7 @@ export const hlbCurriculum: HLBCurriculumStage[] = [
     minTier: 'pro',
     evaluationCriteria: {
       description: '고음에서 복부 압력을 더 강하게 유지',
-      passingScore: 80,
+      passingScore: 85,
       metrics: ['tone_stability', 'pitch_accuracy'],
     },
     somaticFeedback: {
@@ -618,7 +618,7 @@ export const hlbCurriculum: HLBCurriculumStage[] = [
     minTier: 'pro',
     evaluationCriteria: {
       description: '성구전환점(빠사지오)을 매끄럽게 통과하기',
-      passingScore: 80,
+      passingScore: 85,
       metrics: ['pitch_accuracy', 'tone_stability'],
     },
     somaticFeedback: {
@@ -642,7 +642,7 @@ export const hlbCurriculum: HLBCurriculumStage[] = [
     minTier: 'pro',
     evaluationCriteria: {
       description: '\'나니누네노\' 발음에서 세팅 유지하며 가사 붙이기 준비',
-      passingScore: 80,
+      passingScore: 85,
       metrics: ['tone_stability', 'pitch_accuracy'],
     },
     somaticFeedback: {
@@ -668,7 +668,7 @@ export const hlbCurriculum: HLBCurriculumStage[] = [
     minTier: 'pro',
     evaluationCriteria: {
       description: '실전 곡에 발음+세팅을 적용하여 가창',
-      passingScore: 80,
+      passingScore: 85,
       metrics: ['tone_stability', 'pitch_accuracy'],
     },
     somaticFeedback: {
@@ -692,7 +692,7 @@ export const hlbCurriculum: HLBCurriculumStage[] = [
     minTier: 'pro',
     evaluationCriteria: {
       description: '모든 훈련 요소를 종합하여 자유로운 표현',
-      passingScore: 80,
+      passingScore: 85,
       metrics: ['tone_stability', 'pitch_accuracy'],
     },
     somaticFeedback: {

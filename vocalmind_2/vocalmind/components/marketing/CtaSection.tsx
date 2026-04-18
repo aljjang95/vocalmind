@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useScrollReveal } from '@/lib/hooks/useScrollReveal';
 import { createClient } from '@/lib/supabase/client';
@@ -20,11 +21,13 @@ export default function CtaSection() {
     <section id="cta" className="py-32 text-center relative overflow-hidden">
       {/* Background image */}
       <div className="absolute inset-0" aria-hidden="true">
-        <img
+        <Image
           src="https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=1920&q=80"
           alt=""
+          fill
+          sizes="100vw"
           loading="lazy"
-          className="w-full h-full object-cover brightness-[0.2] saturate-[0.6]"
+          className="object-cover brightness-[0.2] saturate-[0.6]"
         />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(91,140,110,0.08),transparent_70%)]" />
         <div className="absolute inset-0 bg-gradient-to-b from-[var(--bg-base)] via-transparent to-[var(--bg-base)]" style={{ backgroundSize: '100% 100%' }} />

@@ -19,5 +19,6 @@ declare module 'soundfont-player' {
   ): Promise<Player>;
 
   export { Player, InstrumentOptions };
-  export default { instrument };
+  const _default: { instrument: typeof instrument };
+  export default _default;
 }

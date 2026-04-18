@@ -7,10 +7,12 @@
 export type UserTier = 'free' | 'hobby' | 'pro' | 'teacher';
 export type StageStatus = 'locked' | 'available' | 'in_progress' | 'passed';
 
+export type EvaluationMetric = 'tone_stability' | 'pitch_accuracy' | 'rhythm_score';
+
 export interface EvaluationCriteria {
   description: string;
   passingScore: number;
-  metrics: string[];
+  metrics: EvaluationMetric[];
 }
 
 export interface SomaticFeedback {
@@ -64,6 +66,7 @@ export interface StageProgress {
   passedAt: string | null;
   lastFeedback: string | null;
   teacherApproved: boolean;
+  recentIssues?: string[]; // 최근 5회 시도의 main_issues 누적 (앞: 과거, 뒤: 최신)
 }
 
 // ── 여정 레슨 Phase ──
@@ -91,4 +94,5 @@ export interface EvaluationResult {
   tension?: TensionDetail;  // optional: 이전 응답 호환
   feedback: string;
   passed: boolean;
+  mainIssues?: string[]; // 이번 세션의 main_issues (실패 패턴 추적용)
 }

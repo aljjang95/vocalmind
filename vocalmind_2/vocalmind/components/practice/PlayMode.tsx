@@ -11,6 +11,8 @@ import {
 } from '@/lib/audio/pitchDetector';
 import type { PitchData } from '@/lib/audio/pitchDetector';
 import type { Song, MelodyPoint, SessionScore } from '@/types';
+import { useRhythmDetection } from '@/lib/hooks/useRhythmDetection';
+import { loadBeatGrid } from '@/lib/audio/beatGridLoader';
 
 function formatTime(sec: number): string {
   if (!isFinite(sec) || sec < 0) return '0:00';
@@ -37,12 +39,25 @@ export default function PlayMode({ song }: Props) {
     setDuration,
     setCurrentSession,
     setShowResult,
+    rhythmEnabled,
+    outputLatencyMs,
+    currentAnalysis,
+    setRhythmLive,
+    setRhythmSession,
   } = usePracticeStore();
 
   const [phase, setPhase] = useState<'ready' | 'playing' | 'scoring'>('ready');
   const [currentNote, setCurrentNote] = useState<string>('--');
   const [currentFreq, setCurrentFreq] = useState<number>(0);
   const [showStopConfirm, setShowStopConfirm] = useState(false);
+
+  // F2: 리듬 세션 훅 — 서버 WebSocket 스트리밍
+  const {
+    lastClassification,
+    sessionScore: rhythmHookSession,
+    startSession: startRhythmSession,
+    stopSession: stopRhythmSession,
+  } = useRhythmDetection();
 
   // Audio refs
   const mrBufferRef = useRef<AudioBuffer | null>(null);
@@ -156,6 +171,10 @@ export default function PlayMode({ song }: Props) {
 
   const finishPlay = useCallback(async (partial: boolean) => {
     stopAllAudio();
+    // F2: 리듬 세션이 활성화되어 있으면 stopSession → 서버가 report 송신
+    if (rhythmEnabled && song.beatGridUrl) {
+      stopRhythmSession();
+    }
     endPlay();
     setPhase('scoring');
 
@@ -185,7 +204,7 @@ export default function PlayMode({ song }: Props) {
     pitchDataRef.current = [];
     setCurrentNote('--');
     setCurrentFreq(0);
-  }, [stopAllAudio, endPlay, calculateScore, song.id, duration, setCurrentSession, setShowResult]);
+  }, [stopAllAudio, endPlay, calculateScore, song.id, song.beatGridUrl, duration, setCurrentSession, setShowResult, rhythmEnabled, stopRhythmSession]);
 
   const handleStart = useCallback(async () => {
     if (!mrBufferRef.current || !mrGainRef.current) return;
@@ -214,6 +233,27 @@ export default function PlayMode({ song }: Props) {
     isPlayingRef.current = true;
     startPlay();
 
+    // F2: 리듬 세션 시작 — beatGridUrl 있고 토글 ON일 때만
+    if (rhythmEnabled && song.beatGridUrl) {
+      try {
+        const grid = await loadBeatGrid(song.beatGridUrl);
+        if (grid) {
+          const sections = (currentAnalysis?.sections ?? []).map((s) => ({
+            start_sec: s.startTime,
+            end_sec: s.endTime,
+            label: s.label,
+          }));
+          await startRhythmSession({
+            beatGrid: grid,
+            outputLatencyMs,
+            sections,
+          });
+        }
+      } catch {
+        // 리듬 세션 실패는 비치명적 — Play 모드는 계속 진행
+      }
+    }
+
     // Start pitch detection
     try {
       await startPitchDetection(onPitch);
@@ -230,7 +270,20 @@ export default function PlayMode({ song }: Props) {
       animFrameRef.current = requestAnimationFrame(tick);
     }
     animFrameRef.current = requestAnimationFrame(tick);
-  }, [playbackRate, startPlay, onPitch, setCurrentTime, finishPlay]);
+  }, [playbackRate, startPlay, onPitch, setCurrentTime, finishPlay, rhythmEnabled, song.beatGridUrl, outputLatencyMs, currentAnalysis, startRhythmSession]);
+
+  // F2: 훅 상태 → 스토어 반영 (실시간 배지 + 세션 결과)
+  useEffect(() => {
+    if (lastClassification) {
+      setRhythmLive({ lastClassification, updatedAt: Date.now() });
+    }
+  }, [lastClassification, setRhythmLive]);
+
+  useEffect(() => {
+    if (rhythmHookSession) {
+      setRhythmSession(rhythmHookSession);
+    }
+  }, [rhythmHookSession, setRhythmSession]);
 
   const handleStopRequest = useCallback(() => {
     setShowStopConfirm(true);

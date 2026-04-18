@@ -29,4 +29,23 @@ export interface AuditionEntry {
   author_name?: string;
   author_avatar_url?: string;
   has_voted?: boolean;
+  // F3: AI 자동 채점
+  ai_score?: number | null;
+  tension_score?: number | null;
+  pitch_accuracy?: number | null;
+  rhythm_score?: number | null;
+  final_score?: number | null;
+  scoring_status?: 'complete' | 'partial' | 'failed' | 'pending';
+}
+
+// F3: 오디션 AI 채점 결과
+export interface AuditionAiScore {
+  aiScore: number;
+  tensionScore: number;
+  pitchAccuracy: number;
+  rhythmScore: number | null;
+  voteScore: number;
+  finalScore: number;
+  alpha: number;
+  status: 'complete' | 'partial' | 'failed';
 }

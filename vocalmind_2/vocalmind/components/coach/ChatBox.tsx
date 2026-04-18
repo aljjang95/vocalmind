@@ -27,6 +27,7 @@ export default function ChatBox() {
         messages: s.messages.length === 0 ? [INITIAL_MESSAGE] : s.messages,
       }));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // 마운트 1회만 실행 — initialized.current 가드가 중복 삽입 방지
 
   // 새 메시지마다 스크롤 하단으로

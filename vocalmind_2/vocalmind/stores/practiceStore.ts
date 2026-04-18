@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Song, PracticeMode, SessionScore, SongAnalysis } from '@/types';
+import type { Song, PracticeMode, SessionScore, SongAnalysis, RhythmLiveState, RhythmSessionScore } from '@/types';
 
 interface PracticeState {
   // ── 곡 관리 (기존 유지) ──
@@ -34,6 +34,12 @@ interface PracticeState {
   // ── 분석 캐시 (신규) ──
   currentAnalysis: SongAnalysis | null;
 
+  // ── F2: 리듬 분석 ──
+  rhythmEnabled: boolean;
+  rhythmLive: RhythmLiveState | null;
+  rhythmSession: RhythmSessionScore | null;
+  outputLatencyMs: number; // 디바이스 오디오 지연 보정값 (persist)
+
   // ── 액션: 기존 ──
   addSong: (song: Song) => void;
   removeSong: (id: string) => void;
@@ -58,6 +64,12 @@ interface PracticeState {
   setCurrentAnalysis: (analysis: SongAnalysis | null) => void;
   startPlay: () => void;
   endPlay: () => void;
+
+  // ── F2: 리듬 액션 ──
+  setRhythmEnabled: (v: boolean) => void;
+  setRhythmLive: (live: RhythmLiveState | null) => void;
+  setRhythmSession: (session: RhythmSessionScore | null) => void;
+  setOutputLatency: (ms: number) => void;
 }
 
 export const usePracticeStore = create<PracticeState>()(
@@ -84,6 +96,12 @@ export const usePracticeStore = create<PracticeState>()(
       showResult: false,
       currentAnalysis: null,
 
+      // ── F2 초기 상태: 리듬 ──
+      rhythmEnabled: false,
+      rhythmLive: null,
+      rhythmSession: null,
+      outputLatencyMs: 60, // 기본값 60ms (평균 디바이스 지연)
+
       // ── 액션: 기존 ──
       addSong: (song) =>
         set((s) => ({ songs: [...s.songs, song] })),
@@ -106,6 +124,8 @@ export const usePracticeStore = create<PracticeState>()(
           currentSession: null,
           showResult: false,
           isRecording: false,
+          rhythmLive: null,
+          rhythmSession: null,
         }),
       setPlaying: (v) => set({ isPlaying: v }),
       setPlaybackRate: (rate) => set({ playbackRate: rate }),
@@ -125,6 +145,8 @@ export const usePracticeStore = create<PracticeState>()(
           showResult: false,
           loopStart: null,
           loopEnd: null,
+          rhythmLive: null,
+          rhythmSession: null,
         }),
       setKeyShift: (shift) =>
         set({ keyShift: Math.max(-6, Math.min(6, shift)) }),
@@ -141,12 +163,21 @@ export const usePracticeStore = create<PracticeState>()(
           currentTime: 0,
           showResult: false,
           currentSession: null,
+          rhythmLive: null,
+          rhythmSession: null,
         }),
       endPlay: () =>
         set({
           isPlaying: false,
           isRecording: false,
         }),
+
+      // ── F2: 리듬 액션 ──
+      setRhythmEnabled: (v) => set({ rhythmEnabled: v }),
+      setRhythmLive: (live) => set({ rhythmLive: live }),
+      setRhythmSession: (session) => set({ rhythmSession: session }),
+      setOutputLatency: (ms) =>
+        set({ outputLatencyMs: Math.max(0, Math.min(500, ms)) }),
     }),
     {
       name: 'vocalmind-practice',
@@ -157,6 +188,7 @@ export const usePracticeStore = create<PracticeState>()(
         vocalGuideVolume: state.vocalGuideVolume,
         keyShift: state.keyShift,
         mode: state.mode,
+        outputLatencyMs: state.outputLatencyMs,
       }),
     }
   )

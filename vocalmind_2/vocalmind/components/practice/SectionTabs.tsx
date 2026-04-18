@@ -34,7 +34,10 @@ export default function SectionTabs({ onSeek }: Props) {
     setLoop,
   } = usePracticeStore();
 
-  const sections: SongSection[] = currentAnalysis?.sections ?? [];
+  const sections: SongSection[] = useMemo(
+    () => currentAnalysis?.sections ?? [],
+    [currentAnalysis],
+  );
 
   const activeSectionIndex = useMemo(() => {
     if (sections.length === 0) return -1;

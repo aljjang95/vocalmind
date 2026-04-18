@@ -80,7 +80,7 @@ export default function VocalMap({ onSeek }: Props) {
   } | null>(null);
   const [selectedTechnique, setSelectedTechnique] = useState<VocalTechnique | null>(null);
 
-  const vocalMap = currentAnalysis?.vocalMap ?? [];
+  const vocalMap = useMemo(() => currentAnalysis?.vocalMap ?? [], [currentAnalysis]);
   const totalDuration = duration > 0 ? duration : (vocalMap.length > 0
     ? Math.max(...vocalMap.map((v) => v.endTime)) + 1
     : 1);

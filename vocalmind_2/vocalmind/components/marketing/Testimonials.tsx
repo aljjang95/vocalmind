@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import { GlowCard } from '@/components/ui/glow-card';
 
 const STORIES = [
@@ -30,11 +31,13 @@ export default function Testimonials() {
       <div className="max-w-[1200px] mx-auto px-7">
         {/* 섹션 구분 비주얼 배너 */}
         <div className="relative rounded-2xl overflow-hidden mb-16 h-[200px] md:h-[260px]">
-          <img
+          <Image
             src="https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1200&q=80"
             alt="공연 무대"
+            fill
+            sizes="(max-width: 768px) 100vw, 1200px"
             loading="lazy"
-            className="w-full h-full object-cover brightness-[0.3] saturate-[0.5]"
+            className="object-cover brightness-[0.3] saturate-[0.5]"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-base)] via-transparent to-[var(--bg-base)]/60" />
           <div className="absolute inset-0 flex items-center justify-center">

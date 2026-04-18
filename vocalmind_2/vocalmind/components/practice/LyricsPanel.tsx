@@ -35,7 +35,10 @@ export default function LyricsPanel({ onSeek }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const lineRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  const lyrics: LyricLine[] = currentAnalysis?.lyrics ?? [];
+  const lyrics: LyricLine[] = useMemo(
+    () => currentAnalysis?.lyrics ?? [],
+    [currentAnalysis],
+  );
 
   // Find active lyric line based on currentTime
   const activeLineIndex = useMemo(() => {

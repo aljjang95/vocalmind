@@ -105,7 +105,16 @@ export const useJourneyStore = create<JourneyState>()(
             passedAt: null,
             lastFeedback: null,
             teacherApproved: false,
+            recentIssues: [],
           };
+
+          // 실패 세션의 main_issues를 recentIssues에 누적 (최대 5개, FIFO)
+          const prevIssues = prev.recentIssues ?? [];
+          const newIssueSet = (result.mainIssues ?? []).join('+');
+          const recentIssues = !result.passed && newIssueSet
+            ? [...prevIssues, newIssueSet].slice(-5)
+            : prevIssues;
+
           const updated = {
             ...prev,
             bestScore: Math.max(prev.bestScore, result.score),
@@ -113,6 +122,7 @@ export const useJourneyStore = create<JourneyState>()(
             lastFeedback: result.feedback,
             status: (result.passed ? 'passed' : 'in_progress') as StageStatus,
             passedAt: result.passed ? new Date().toISOString() : prev.passedAt,
+            recentIssues,
           };
 
           // Supabase 동기화 (비동기, 실패해도 무시)

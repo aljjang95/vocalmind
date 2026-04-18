@@ -35,3 +35,28 @@ export interface BreathingSession {
   phases: BreathPhase[];
   longestExhaleSec: number;
 }
+
+// ── F1: 호흡 분석 결과 (AI 엔진) ──
+
+export interface BreathCycle {
+  inhaleStartSec: number;
+  inhaleEndSec: number;
+  exhaleEndSec: number;
+  inhaleDurationSec: number;
+  exhaleDurationSec: number;
+  exhaleStability: number;
+}
+
+export type BreathWeakness = 'shallow' | 'unstable' | 'short' | 'none';
+
+export interface BreathAnalysis {
+  cycles: BreathCycle[];
+  avgInhaleSec: number;
+  avgExhaleSec: number;
+  consistencyScore: number;
+  sustainScore: number;
+  stabilityScore: number;
+  overallScore: number;
+  durationSec: number;
+  weakness: BreathWeakness;
+}
