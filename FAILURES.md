@@ -34,3 +34,19 @@
 - **수정 해상도 (결정)**:
   - Pro: 1920×1080 → **2560×1440** (QHD, 정확히 3.68M = 하한 통과)
   - Studio: 2048×1152 → **2880×1620** (3K, 4.67M = 여유 통과)
+
+---
+
+## 실패 #2 (2026-04-18, Phase B 직후 프론트 동기화 누락 — 실물 UI 검증에서 발견)
+- **시도한 방식**: 백엔드 `runware_catalog.py`의 Pro/Studio 이미지 해상도를 2560×1440 / 2880×1620로 교정 (실패 #1 수정). 프론트 `types/studio.ts STUDIO_TIERS.imageResolution`은 갱신하지 않음
+- **결과**: dev 서버에서 `/pricing/tier-preview` 스크린샷 확인 시 카드 UI에 **구 해상도(1920×1080 / 2048×1152)** 가 표시. 실제 백엔드는 QHD/3K로 호출 → UI와 실행 결과 불일치. 유저 혼란 + 신뢰도 손상 위험
+- **근본 원인**:
+  1. 품질 티어의 "진실의 근원"이 **백엔드 상수와 프론트 상수에 이중 정의**돼 있음. 한 곳 수정하면 다른 곳 동기화 잊기 쉬움
+  2. 마이그레이션 뷰 `studio_tier_catalog`를 만들어 놓고 BFF가 활용하지 않아 여전히 프론트 하드코딩 상수에 의존
+  3. 배포 전 실물 스크린샷 검증이 없었음 — pytest/tsc는 값 불일치를 감지 못 함
+- **재발 방지 규칙**:
+  1. `backend/infra/runware_catalog.py` 수정 시 **체크리스트**: `types/studio.ts STUDIO_TIERS` · `supabase/migrations/*_studio_quality_tiers.sql` (뷰) 3곳 동시 확인. 커밋 전 `grep -n "이전 값" -r .` 로 잔재 탐색
+  2. 중기 목표: BFF가 Supabase `studio_tier_catalog` 뷰를 `GET /api/studio/tiers`로 노출해 프론트가 실시간 조회 → 상수 이중화 해소
+  3. `STUDIO_TIERS` 주석 상단에 "backend `runware_catalog.TIERS`와 동기화 필수" 경고 박제
+  4. 품질 티어 관련 PR은 배포 전 `/pricing/tier-preview`(dev 전용) 스크린샷 1장 필수 첨부
+- **수확**: "실물 확인" 원칙의 가치 입증. 마스터 지시가 없었다면 다음 세션 유저가 처음 겪었을 버그.

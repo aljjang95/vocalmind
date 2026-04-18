@@ -197,6 +197,10 @@ export interface StudioTierSpec {
   recommended?: boolean;     // '추천' 배지 (Pro)
 }
 
+// ⚠️ 동기화 필수 — 이 상수를 수정하면 반드시 아래 2곳을 함께 갱신할 것:
+//   1) backend/infra/runware_catalog.py TIERS
+//   2) supabase/migrations/*_studio_quality_tiers.sql (studio_tier_catalog 뷰)
+// 불일치 사례: FAILURES.md #2 (해상도 동기화 누락)
 export const STUDIO_TIERS: Record<QualityTier, StudioTierSpec> = {
   draft: {
     tier: 'draft',
@@ -217,7 +221,7 @@ export const STUDIO_TIERS: Record<QualityTier, StudioTierSpec> = {
     sceneCount: 5,
     budgetUsd: 7.0,
     modelLabel: 'Seedream 4.5 + Kling 2.6 Pro',
-    imageResolution: '1920×1080',
+    imageResolution: '2560×1440',   // QHD, Seedream 4.5 픽셀 하한 통과 (FAILURES #1)
     tagline: '표준 30초 — SNS 업로드에 최적',
     recommended: true,
   },
@@ -229,7 +233,7 @@ export const STUDIO_TIERS: Record<QualityTier, StudioTierSpec> = {
     sceneCount: 8,
     budgetUsd: 18.0,
     modelLabel: 'Seedream 5.0 Lite + Kling 3.0 Pro',
-    imageResolution: '2048×1152',
+    imageResolution: '2880×1620',   // 3K, Seedream 5.0 Lite 여유 통과 (FAILURES #1)
     tagline: '프리미엄 60초 — 브랜드·인플루언서용 풀 MV',
   },
 } as const;
