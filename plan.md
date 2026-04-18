@@ -1,0 +1,134 @@
+# Paradigm A-Lite (Phase 0 Bootstrap) 실행 계획
+
+> **전략**: 자금이 스스로 모이는 종량제 MVP. 선투자 리스크 0.
+> **목표**: 베타 1개월 내 첫 매출 100만원 → Phase 1 확장 자금 조달
+
+## 문서 위치
+- Phase 1 풀스펙 (자금 누적 후 사용): `vocalmind_2/vocalmind/docs/specs/2026-04-18-paradigm-a-phase1.md`
+- Phase 1 기술 청사진: `vocalmind_2/vocalmind/docs/specs/2026-04-18-paradigm-a-phase1-architecture.md`
+- 로드맵 메모리: `~/.claude/projects/.../memory/project_vocalmind_1m_roadmap.md`
+
+## Phase 0 핵심 구조
+- 유저 본인 MR 업로드만 (라이선스 리스크 0)
+- 선불 크레딧 단건 결제 (토스페이먼츠, 월 정액 없음)
+- 1크레딧 = 1,000원, 커버 1편 = 5크레딧
+- 원가 ≈ 2,000원 / 판매가 5,000원 / 마진 60%
+- SNS 자동 업로드 제외 → 유저가 MP4 다운로드
+- Supabase Storage 유지 (R2 전환은 월 500MV 이후)
+
+## 축소 범위 (Phase 1 대비 제외)
+- ❌ SNS 자동 업로드 (F6 전체)
+- ❌ 정기구독 / Stripe (F5 절반)
+- ❌ 크리에이터 성과 대시보드 (F7)
+- ❌ 수료→데뷔 자동 트리거 (F8)
+- ❌ MR 라이선스 카탈로그 (F9)
+- ❌ 광고 수익 분배
+- ❌ 크리에이터 Starter/Creator/Pro 3티어
+- ❌ Cloudflare R2
+
+## 유지 범위 (Phase 0 포함)
+- ✅ F1 AI 스튜디오 원클릭 파이프라인 (Demucs→RVC→FLUX→HunyuanVideo→LatentSync→FFmpeg)
+- ✅ F2 개인 음색 모델 (Voice Identity)
+- ✅ F3 MV 비주얼 스타일 엔진 (프리셋 2~4종)
+- ✅ F4 아바타·립싱크
+- ✅ 선불 크레딧 결제 (F5 단건만)
+- ✅ 워터마크 C2PA
+- ✅ 3단계 모더레이션
+
+## DB 축소 버전 (5개만)
+1. studio_credits_ledger (append-only + consume_credits RPC)
+2. voice_identities
+3. studio_jobs (큐+상태머신+감사)
+4. covers
+5. moderation_events
+- ❌ mr_catalog, sns_connections, publish_tasks, publish_metrics, revenue_share_ledger (Phase 1 이후)
+
+## 4주 마일스톤
+
+### W1 — 기초 레이어 [✅ 완료]
+- [x] `supabase/migrations/20260418_studio_phase0.sql` — 5 tables + 3 functions + 7 RLS policies + Realtime publication
+- [x] `backend/infra/runware_client.py` — FLUX/HunyuanVideo/LatentSync 래퍼 + 8 단위 테스트 PASS
+- [x] `backend/services/credits.py` — consume/grant/refund_job + 9 단위 테스트 PASS
+- [x] `types/studio.ts` — StudioJob/VoiceIdentity/Cover/CreditLedgerEntry + 배럴 등록 (tsc 0 에러)
+- [x] **Supabase 마이그레이션 배포 완료** (Management API 경유, Dashboard Table Editor 확인 가능)
+- [x] **Runware 라이브 API 호출 검증** — FLUX Schnell 512x512 이미지 정상 반환
+- [x] **.env.local SERVICE_ROLE_KEY placeholder → 실제 키 교체**
+- [x] **Supabase RPC consume_credits 실전 호출 검증** — INSUFFICIENT_CREDITS 정상 반환
+- [x] `backend/modal_compose.py` — FFmpeg concat + 자막 + 16:9/9:16 + C2PA + Supabase Storage 업로드 + **12 단위 테스트 PASS**
+
+### W2 — 파이프라인 코어 [✅ 완료]
+- [x] `backend/services/studio_pipeline.py` — 상태머신 드라이버 (transition/mark_failed/increment_attempt)
+- [x] `backend/routers/orchestrator.py` + main.py 등록 — `/orchestrator/start` + `/callback/{modal,runware}` + **15 단위 테스트 PASS**
+- [x] `backend/services/modal_dispatcher.py` — Demucs/RVC/Compose HTTPS invoke 래퍼
+- [x] orchestrator stub → 실제 dispatch 연결 (`_signed_url` + `modal_dispatcher.dispatch_*`)
+- [x] `app/api/credits/balance/route.ts` + `app/api/studio/jobs/route.ts` (POST, 크레딧 차감 + orchestrator dispatch + 자동 환불)
+- [x] `app/api/studio/upload/route.ts` — MR/녹음/아바타 Storage 업로드 라우트
+- [x] `lib/hooks/useStudioJob.ts` — Supabase Realtime 단일 job 구독
+- [x] `app/studio/page.tsx` + `StudioHomeClient.tsx` — 스튜디오 홈 (크레딧 뱃지 + 최근 작업 + CTA)
+- [x] `app/studio/new/NewCoverWizardClient.tsx` — 5단계 위저드 (MR→녹음→스타일→아바타→제출)
+- [x] `ORCHESTRATOR_SECRET` 양쪽 환경변수 자동 생성 + 동기화
+- [x] Supabase Storage 4개 버킷 생성 (`studio-mr`, `studio-recording`, `studio-avatar`, `mv-output`) + 유저별 RLS 정책
+- [x] 전체 백엔드 회귀: **308 PASS** 유지 / Frontend tsc 0 에러 / build 성공 (`/studio/new` 3.68kB)
+
+### W3 — 유저 플로우 완성 [✅ 대부분 완료]
+- [x] `/studio/[coverId]` 프리뷰 페이지 (Realtime 진행률 + MP4 다운로드 + 16:9/9:16 토글 + C2PA 뱃지)
+- [x] Voice Identity 등록 페이지 (`/studio/voice-identity` — 10문장 순차 녹음 + 진행률 + POST /api/voice-identity/train)
+- [x] 토스페이먼츠 크레딧 충전 (`/credits` 위젯 + `/credits/success` confirm + `/credits/fail` 랜딩 + `POST /api/credits/topup/confirm` 멱등 orderId)
+- [x] scene_planner (Claude Haiku + 4스타일 fallback 프롬프트 — 10 tests PASS)
+- [x] scene_dispatcher (Runware FLUX + HunyuanVideo 오케스트레이션) + orchestrator 와이어 (`_dispatch_step("scene_planning")` → run_scene_pipeline → lipsync → composing 자동 체이닝, ffprobe duration)
+- [x] modal_demucs/rvc/compose — spawn + callback 패턴으로 통일 (`_process_*` 워커가 Supabase Storage 업로드 후 `X-Orchestrator-Secret` 헤더로 callback POST). RVC는 `convert_studio` 엔드포인트 신설(기존 `/convert`는 ai-cover 용도로 보존). modal_dispatcher URL 업데이트. 백엔드 318 PASS + Python AST OK.
+- [ ] **Modal CLI로 3개 앱 배포** (마스터 액션 필요): `modal deploy modal_demucs.py` + `modal_rvc.py` + `modal_compose.py`. 새 Secret: `vocalmind-orchestrator`(ORCHESTRATOR_SECRET)
+- [x] **회귀 검증**: 백엔드 318 PASS / Frontend tsc 0 에러 / Next build 성공 (`/studio/voice-identity` 3.8kB, `/credits/success` 1.46kB)
+- [x] **플로우 게이트 연결**: `/api/studio/jobs`가 ready 상태 voice_identity 자동 선택/검증 → 없으면 `VOICE_IDENTITY_REQUIRED` 응답 → 위저드 자동 redirect. `/studio` 홈에 `VoiceStatusCard` (ready/training/none) 추가, CTA 라벨 동적 전환 ("먼저 내 음색 등록하기" ↔ "커버 만들기 (5크레딧)")
+- [x] **Phase 0 운영 도구 `/admin/voices`**: TEACHER_EMAIL 게이트 + training/ready/failed 필터 + 10문장 각각 signed URL 재생 + RVC 모델 경로 입력 후 승인(unique index 회피로 기존 ready는 archived 자동) / 실패 처리. `voice_identities.source_clips` JSONB 컬럼 마이그레이션 적용(Management API) + `/api/voice-identity/train`에서 저장. `lib/infra/admin-auth.ts` 재사용 가능한 `requireAdmin()` helper.
+- [x] **AI 스튜디오 랜딩 섹션**: `components/marketing/AIStudioBeta.tsx` (3단계 스토리텔링 + 가격 5000원 + 베타 뱃지 + `/studio` CTA). `(marketing)/page.tsx`에 Demo ↔ Pricing 사이 삽입.
+
+### W2 — 파이프라인 코어
+- [ ] `backend/routers/orchestrator.py` + `services/studio_pipeline.py` 상태머신 드라이버
+- [ ] Demucs → RVC → FLUX(1씬) → HunyuanVideo(1클립) → compose 일직선 연결
+- [ ] `/api/studio/jobs` POST (크레딧 선차감 + orchestrator start)
+- [ ] `/studio/new` 위저드 UI (MR 업로드·녹음·스타일·아바타 4단계)
+- [ ] `lib/hooks/useStudioJob.ts` — Supabase Realtime 진행률
+- [ ] Zustand `studioStore`
+
+### W3 — 유저 플로우 완성
+- [ ] `/studio/voice-identity` — 10문장 녹음 + 카메라 liveness + modal_rvc train 연결
+- [ ] `/credits` + 토스페이먼츠 크레딧 충전 (기존 confirm 확장)
+- [ ] `/studio/[coverId]` — 프리뷰 + 썸네일 + MP4 다운로드
+- [ ] 크레딧 환불 플로우 (실패 자동)
+- [ ] 스타일 프리셋 2종 (cinematic, cozy) 완성
+
+### W3.5 — 자율 개선 세션 (2026-04-18, 마스터 부재)
+- [x] 백엔드 테스트 318 → **333 PASS** (orchestrator scene_planning/lipsync 분기 + scene_dispatcher cost 누적 + _probe_duration 엣지케이스 = +15건)
+- [x] 4개 스타일 프리셋 프롬프트 고도화 — 각 스타일별 anchor 토큰(ARRI/Kinfolk/Blade Runner/Ghibli) + 6씬 배열로 확장. LLM 경로에도 anchor 부착해 i2i 일관성 보장.
+- [x] `studio_jobs.cost_usd_actual` 실측 — Runware 이미지/비디오 응답 cost 필드 누적. `scene_dispatcher.increment_cost_usd()` SELECT→UPDATE 2단계 원자적 갱신.
+- [x] `docs/ops/phase0-runbook.md` — Phase 0 1인 운영자 룬북 (일일 점검 SQL / 수동 RVC 학습 / 장애 플레이북 / 월간 마진 검증 / 배포 체크리스트)
+- [x] `/studio/new` UX — 원가 뱃지(5크레딧=5000원), MR 가이드(4줄 hint + 40MB 프리체크), 제출 단계 요약 dl (스타일/아바타/비용/시간)
+- [x] `/studio/[coverId]` — FailurePanel 컴포넌트 통일(failed/refunded 분기), 실패 단계 한국어 매핑, "다시 만들기" CTA, 30분+ 환불 지연 시 문의 안내
+- [x] 보안: `/api/studio/jobs` 경로 소유권 검증(PATH_OWNERSHIP_VIOLATION), `/api/voice-identity/train` duration 1~60s + storagePath 중복/소유권 + clip 최대 15개
+- [x] 백엔드 startup env 체크 — `_check_phase0_env()` + `/health`에 `phase0_missing_env` 노출. 운영자가 환경변수 누락 조기 발견.
+- [x] `/studio` 홈 pagination + 필터 — 전체/진행중/완료/실패 4탭 + 10개씩 "더 보기" 무한 스크롤.
+- [x] `docs/adr/002-phase0-bootstrap.md` — Phase 0 결정 배경 + 5개 대안 비교 + Phase 1 전환 조건 4개 명시.
+
+### W4 — 베타 런칭
+- [ ] 내부 알파 20명 테스트
+- [ ] 원가·품질·속도 측정 및 튜닝
+- [x] 스타일 프리셋 4종 완성
+- [x] **모더레이션 3단계 통합** — `backend/services/moderation.py` (upload/voice_identity/cover_output 3단계 규칙 기반 + moderation_events 로깅 + enforce). orchestrator `modal_callback`의 watermarking 성공 시점에 Stage 3 게이트 연결(위반 → mark_failed + 자동 환불). 테스트: `tests/test_moderation.py` 42건 + `TestStage3ModerationGate` 4건 = **+46건**, 전체 백엔드 333 → **379 PASS**.
+- [x] 랜딩 페이지 "AI 스튜디오 베타" 섹션 추가
+- [ ] 공개 베타 오픈
+
+**완료 기준**:
+- 첫 곡 완성 평균 15분 이내
+- 원가 편당 2,000원 이하
+- 품질 MOS 3.5/5.0 이상
+- 베타 1개월 내 첫 매출 **100만원**
+
+## 마스터 처리 필요 (막힘 신호 1건)
+- [ ] **Runware API 키 발급** → `~/.claude/secrets/api-keys.env`에 `RUNWARE_API_KEY=xxx` 추가
+  - 가입: https://runware.ai → API Keys 메뉴 → Create new key
+  - 예치금 $20~50으로 시작 가능 (종량제)
+
+## 진행 상태
+- [2026-04-18] Phase 0 Bootstrap 전략 확정, plan.md 작성
+- [다음] W1 착수 — Runware 키 대기하면서 병렬로 DB 마이그레이션 + modal_compose + orchestrator 스켈레톤 작성 가능

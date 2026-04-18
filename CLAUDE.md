@@ -71,6 +71,17 @@ vocalmind_2/vocalmind/
 │   ├── privacy/               # 개인정보처리방침
 │   ├── teacher/               # 선생님 대시보드 (피드백 요청 관리)
 │   ├── vocal-report/          # 주간 보컬 리포트
+│   ├── studio/                # [Phase 0] AI 스튜디오 — 본인 MR로 커버 MV 생성
+│   │   ├── page.tsx           # 홈 (크레딧 뱃지 + VoiceStatusCard + 최근 작업 + CTA)
+│   │   ├── new/               # 5단계 위저드 (MR→녹음→스타일→아바타→제출)
+│   │   ├── [coverId]/         # 진행률 Realtime + 완성 MP4 다운로드 + C2PA 뱃지
+│   │   └── voice-identity/    # 10문장 녹음 → voice_identities.status=training
+│   ├── admin/                 # [Phase 0] 관리자 (TEACHER_EMAIL 게이트)
+│   │   └── voices/            # voice_identity 승인 (clip 재생 + RVC 모델 경로 입력)
+│   ├── credits/               # [Phase 0] 선불 크레딧 충전 (토스페이먼츠 위젯)
+│   │   ├── page.tsx           # 3팩 선택 (50/150/500 크레딧)
+│   │   ├── success/           # Toss 승인 → /api/credits/topup/confirm → 지급 완료
+│   │   └── fail/              # 실패 착지
 │   └── api/
 │       ├── evaluate/          # → Python :8001/evaluate (음성 채점)
 │       ├── onboarding-analyze/ # → Python :8001/onboarding/analyze (4축 분석)
@@ -82,7 +93,7 @@ vocalmind_2/vocalmind/
 │       ├── warmup/            # 워밍업 루틴 생성
 │       ├── diagnose/          # 보컬 진단
 │       ├── coach-feedback/    # 코칭 피드백
-│       ├── ai-cover/          # train, convert, status
+│       ├── ai-cover/          # train, convert, status (구 AI 커버 기능)
 │       ├── analyze-song/      # 곡 분석
 │       ├── analyze/           # 곡 분석 (기본)
 │       ├── pronunciation/     # 발음 분석
@@ -97,7 +108,11 @@ vocalmind_2/vocalmind/
 │       ├── audition/          # GET(이벤트) + POST(참가) + vote
 │       ├── payment/           # confirm (토스 승인), plan (구독 변경)
 │       ├── storage-url/       # Supabase Storage 서명 URL 생성
-│       └── teacher/           # requests (피드백 요청 목록/상세)
+│       ├── teacher/           # requests (피드백 요청 목록/상세)
+│       ├── credits/           # [Phase 0] balance(GET) + topup/confirm(POST 토스)
+│       ├── studio/            # [Phase 0] jobs(POST 생성 + voice_identity 자동 선택) + upload(mr/recording/avatar)
+│       ├── voice-identity/    # [Phase 0] train(POST — 10문장 → voice_identities insert)
+│       └── admin/             # [Phase 0] admin/voices(GET) + approve(POST) + clip-url(GET)
 ├── backend/                   # Python FastAPI (긴장 감지 AI 엔진)
 │   ├── main.py                # FastAPI 앱 + CORS + 라우터 등록
 │   ├── schemas/               # [신규] Pydantic 응답 모델 (라우터에서 분리)
@@ -136,7 +151,19 @@ vocalmind_2/vocalmind/
 │   │   ├── voice_feedback.py      # edge-tts 음성 합성
 │   │   └── rag_service.py         # ChromaDB RAG (infra/ 싱글톤)
 │   ├── models/tension.py      # TensionAnalysis, TensionScore Pydantic 모델
-│   └── tests/                 # 164개 테스트
+│   ├── routers/orchestrator.py # [Phase 0] POST /orchestrator/start + /callback/{modal,runware} (X-Orchestrator-Secret)
+│   ├── services/
+│   │   ├── studio_pipeline.py  # [Phase 0] 상태머신(STEP_ORDER 13단계) + transition 낙관적잠금 + mark_failed 자동 환불
+│   │   ├── modal_dispatcher.py # [Phase 0] dispatch_demucs/rvc/compose HTTPS invoke
+│   │   ├── scene_planner.py    # [Phase 0] Claude Haiku로 씬 플랜 생성 + 4스타일 fallback
+│   │   ├── scene_dispatcher.py # [Phase 0] Runware FLUX+HunyuanVideo 오케스트레이션
+│   │   ├── credits.py          # [Phase 0] consume/grant/refund_job RPC 래퍼
+│   │   └── moderation.py       # [Phase 0] 3단계 모더레이션(upload/voice_identity/cover_output) + moderation_events 로깅 + enforce
+│   ├── infra/runware_client.py # [Phase 0] FLUX/HunyuanVideo/LatentSync 싱글톤 클라이언트
+│   ├── modal_demucs.py         # [Phase 0] spawn+callback (separate 엔드포인트, Supabase 업로드)
+│   ├── modal_rvc.py            # [Phase 0] convert_studio 신규(Phase 0 voice_identity용) + 기존 convert(ai-cover)
+│   ├── modal_compose.py        # [Phase 0] FFmpeg concat + 자막 + 16:9/9:16 + C2PA + Supabase 업로드
+│   └── tests/                  # 379개 테스트 (Phase 0 모더레이션 3단계 +46 포함)
 ├── components/
 │   ├── ds/                    # 디자인 시스템 (Button, Card, MetricBar, ScoreDisplay, NavBar)
 │   ├── shared/                # Nav, Footer, Icons, TTSButton, Waveform, DemoAudioPlayer, ScrollReveal, AudioPlayer, UserProfileCard
@@ -173,15 +200,16 @@ vocalmind_2/vocalmind/
 │   ├── communityStore.ts      # 커뮤니티 피드 (비persist)
 │   └── auditionStore.ts       # 오디션 이벤트/참가/투표 (비persist)
 ├── lib/
-│   ├── infra/                 # [신규] 프론트 인프라 레이어
-│   │   ├── auth.ts            # requireAuth() — 18곳 인증 중복 제거
+│   ├── infra/                 # 프론트 인프라 레이어
+│   │   ├── auth.ts            # requireAuth() — 유저 인증 공통 가드 (18곳 중복 제거)
+│   │   ├── admin-auth.ts      # [Phase 0] requireAdmin() — TEACHER_EMAIL 게이트 + service client
 │   │   └── backend-client.ts  # Python 백엔드 프록시 (URL 중앙 관리)
-│   ├── services/              # [신규] 비즈니스 로직 공유 모듈
+│   ├── services/              # 비즈니스 로직 공유 모듈
 │   │   ├── rate-limiter.ts    # checkRateLimit() — 9곳 450줄 중복 제거
-│   │   └── ai-parser.ts      # parseAiJsonResponse() — 8곳 파싱 중복 제거
+│   │   └── ai-parser.ts       # parseAiJsonResponse() — 8곳 파싱 중복 제거
 │   ├── anthropic.ts           # Anthropic 클라이언트 (server-only)
 │   ├── supabase/              # Supabase 서버/클라이언트
-│   ├── hooks/                 # useRealtimeEval, useTTS, useAudioPlayer, usePitchDetection, useScaleWebSocket, useDemoPitch, useYouTubePlayer
+│   ├── hooks/                 # useRealtimeEval, useTTS, useAudioPlayer, usePitchDetection, useScaleWebSocket, useDemoPitch, useYouTubePlayer, useStudioJob(Realtime), useAudioRecorder
 │   ├── prompts/               # AI 시스템 프롬프트 (코칭/진단/채팅)
 │   ├── data/hlbCurriculum.ts  # 8블록 28단계 + whyText + demoScript + 채점기준 + demoAudio/Video 자동 주입
 │   ├── data/stageDemoAudio.ts # 28단계 시범 오디오 CDN URL (Supabase vocal-clips)
@@ -189,7 +217,7 @@ vocalmind_2/vocalmind/
 │   ├── data/faqDatabase.ts    # 13개 FAQ 자동 응답
 │   ├── audio/                 # 피치/호흡/멜로디 추출
 │   └── coach/                 # 피치 채점
-├── types/                     # [리팩토링] 15개 도메인 파일 + 배럴 (665줄→분리)
+├── types/                     # [리팩토링] 16개 도메인 파일 + 배럴 (665줄→분리)
 │   ├── index.ts               # 배럴 re-export (기존 import 100% 호환)
 │   ├── shared.ts              # ApiResponse, Plan, User
 │   ├── journey.ts             # StageProgress, LessonStage, JourneyLessonPhase
@@ -198,6 +226,7 @@ vocalmind_2/vocalmind/
 │   ├── community.ts           # CommunityPost, Vote, FeedTab
 │   ├── billing.ts             # BillingPlan, Subscription, PlanTier
 │   ├── avatar.ts              # AvatarData, ShopItem, InventoryItem
+│   ├── studio.ts              # [Phase 0] StudioJob, VoiceIdentity, Cover, CreditLedgerEntry, STUDIO_PRICING
 │   └── ...                    # chat, analysis, diagnosis, practice, warmup, breathing, audition, vocal-dna
 ├── middleware.ts              # CSP nonce + Auth 라우트 보호
 └── scripts/dev.sh             # 프론트+백엔드 동시 실행
@@ -247,6 +276,22 @@ Frontend API (Next.js):
   /api/community/vote → POST/DELETE: 투표 (unique constraint)
   /api/audition → GET: active 이벤트 / POST: 참가 (1인 1참가)
   /api/audition/vote → POST/DELETE: 투표 (자기 투표 방지)
+
+Phase 0 AI 스튜디오 (선불 크레딧 단건 결제):
+  /api/credits/balance → GET: studio_credit_balances view 잔액
+  /api/credits/topup/confirm → POST 토스 승인 → vocal_payments + grant_credits RPC (멱등)
+  /api/studio/upload → POST multipart (kind: mr|recording|avatar) → {bucket}/{uid}/{ts}.{ext}
+  /api/studio/jobs → POST: consume_credits → studio_jobs(pending) insert → orchestrator/start 호출 → auto-refund on fail
+  /api/voice-identity/train → POST: 10문장 + source_clips → voice_identities(training)
+  /api/admin/voices → GET(list) / approve(POST → ready or failed) / clip-url(GET signed URL). TEACHER_EMAIL 게이트.
+
+Backend Orchestrator (X-Orchestrator-Secret 인증):
+  POST /orchestrator/start {job_id} → 상태머신 첫 단계(vocal_separating) 진입
+  POST /orchestrator/callback/modal → Modal 함수 완료 콜백 (vocal_separating/rvc/mixing/composing/...)
+  POST /orchestrator/callback/runware → Runware 비동기 태스크 알림
+  상태 전이: pending → vocal_separating → vocal_rvc → vocal_mixing → scene_planning → scene_image_gen
+             → scene_video_gen → lipsync → composing → formatting → watermarking → finalizing → completed
+             (실패 시 attempt_count++; max_attempts 초과 → failed → refunded)
 ```
 
 ## Zustand Stores
@@ -349,14 +394,18 @@ parselmouth 기반으로 혀뿌리/턱/후두 긴장을 음성 신호에서 측�
 |--------|--------|-----|
 | Frontend | Vercel | vocalmind-lemon.vercel.app |
 | Backend | Fly.io (nrt) | vocalmind-backend.fly.dev |
+| Modal GPU 워커 | Modal | vocalmind--vocalmind-demucs-separate / vocalmind-rvc-convert_studio / vocalmind-compose-compose_final |
 
 - Backend CORS: `FRONTEND_URL` 환경변수로 프론트 도메인 허용
 - Fly.io: shared 1CPU, 512MB, auto_stop/auto_start, min_machines=0
 - Vercel: `backend/` 제외 (.vercelignore)
+- Modal: T4 GPU(demucs/rvc), CPU 4.0/8GB(compose), spawn+callback 패턴, scaledown_window=60
+- Modal 배포: `modal deploy modal_{demucs,rvc,compose}.py` — 3개 앱 독립
 
 ## Architecture Decisions
 
 - [ADR-001](docs/adr/001-server-only-anthropic.md) — Anthropic API server-only 강제
+- [ADR-002](docs/adr/002-phase0-bootstrap.md) — Phase 0 Bootstrap (선불 크레딧, 본인 MR, Modal spawn+callback, Supabase Storage 유지)
 
 ## Environment
 
@@ -364,19 +413,33 @@ parselmouth 기반으로 혀뿌리/턱/후두 긴장을 음성 신호에서 측�
 # .env.local
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=       # 미사용, 향후 선생님 대시보드용
+SUPABASE_SERVICE_ROLE_KEY=       # Phase 0 필수 — studio_jobs service role ops + grant_credits RPC
 ANTHROPIC_API_KEY=
 VOCAL_BACKEND_URL=http://localhost:8001
+TEACHER_EMAIL=                   # 선생님/관리자 게이트 (/teacher + /admin/voices)
+ORCHESTRATOR_SECRET=             # Phase 0 — BFF ↔ FastAPI orchestrator 공유 시크릿 (64 hex)
+NEXT_PUBLIC_TOSSPAYMENTS_CLIENT_KEY=
+TOSSPAYMENTS_SECRET_KEY=         # Phase 0 크레딧 충전 승인용
 
 # backend/.env (또는 환경변수)
 CHROMA_DB_PATH=~/Desktop/보컬커리큘럼/chroma_db
-ANTHROPIC_API_KEY=               # 백엔드용 (RAG 코칭 + 온보딩 상담)
+ANTHROPIC_API_KEY=               # 백엔드용 (RAG 코칭 + 온보딩 상담 + scene_planner)
 FRONTEND_URL=                    # 프로덕션 CORS용 (Fly.io 환경변수로 설정)
+ORCHESTRATOR_SECRET=             # .env.local과 동일 값
+SUPABASE_URL=                    # Phase 0 orchestrator → Supabase REST/Storage
+SUPABASE_SERVICE_ROLE_KEY=
+RUNWARE_API_KEY=                 # Phase 0 scene_planner + image/video/lipsync
+PUBLIC_BACKEND_URL=              # Modal 함수가 콜백할 공개 주소 (prod: fly.dev)
+
+# Modal Secrets (modal secret create ...)
+vocalmind-supabase                 # SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY
+vocalmind-c2pa                     # C2PA_SIGNING_KEY_PEM + C2PA_SIGNING_CERT_PEM
+vocalmind-orchestrator             # ORCHESTRATOR_SECRET (Modal → BFF 콜백 헤더용)
 ```
 
 ## Testing
 
-백엔드: pytest 167개 테스트 (커버리지 95%) — `cd backend && python -m pytest tests/ -v`
-프론트엔드: `npm run build` 빌드 검증
+백엔드: pytest 379개 테스트 — `cd backend && python -m pytest tests/ -v`
+프론트엔드: `npm run build` 빌드 검증 + `npx tsc --noEmit`
 
 
