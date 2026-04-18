@@ -118,10 +118,43 @@
 - [x] 랜딩 페이지 "AI 스튜디오 베타" 섹션 추가
 - [ ] 공개 베타 오픈
 
+### W4.5 — 품질 티어 업그레이드 (2026-04-18 마스터 각인 반영)
+> 마스터 지시: "RunwareAPI의 다른 모델 써도 좋으니 최고 결과. 단 낭비 리스크 조심."
+>
+> 단일가 5크레딧/5,000원 → **Draft/Pro/Studio 3티어**로 재설계. 고품질 모델 허용하되 예산 가드 내장.
+
+- [x] `backend/infra/runware_catalog.py` — TIERS + STYLE_ANCHORS + select_model/apply_style/validate_tier (22 tests PASS)
+- [x] `backend/infra/runware_client.py` — **RUNWARE_DRY_RUN=1 무과금 리허설**, Seedream referenceImages(14장 상한), FLUX steps/CFG 조건부. (+9 tests)
+- [x] `backend/services/scene_dispatcher.py` — `tier` 파라미터 + **BudgetExceeded 가드**(누적 원가가 티어 예산 초과 전 중단), 이미지 모델·해상도·비디오 모델·해상도 자동 선택. (+12 tests)
+- [x] `backend/routers/orchestrator.py` — `run_scene_pipeline`에 `tier=job.quality_tier` 전달, 잘못된 티어는 DEFAULT_TIER로 폴백
+- [x] `supabase/migrations/20260418_studio_quality_tiers.sql` — `studio_jobs.quality_tier`(text) + `budget_usd`(numeric) + `idx_studio_jobs_tier_status` 인덱스 + `studio_tier_catalog` 뷰
+- [x] `types/studio.ts` — `QualityTier` 타입 + `STUDIO_TIERS` 3카드 상수 + `StudioJob.qualityTier/budgetUsd` 필드
+- [x] `app/api/studio/jobs/route.ts` — `qualityTier` 바디 필드 + 검증 + DB insert에 `quality_tier/budget_usd` 저장
+- [x] `app/studio/new/NewCoverWizardClient.tsx` — **4단계 티어 선택 UI** (Draft/Pro/Studio 3카드, 추천 배지, 모델·해상도·씬수 표시) + Header·Submit 요약 동적 가격 표시
+- [x] 회귀: **백엔드 379 → 422 PASS (+43)**, tsc 0 에러, Next build 성공 (`/studio/new` 3.68kB → 5.39kB)
+
+**티어 스펙 확정 (2026-04-18):**
+| 티어 | 모델 스택 | 길이 | 크레딧 | 판매가 | 예산상한 |
+|------|-----------|------|--------|--------|----------|
+| Draft | FLUX Schnell + Wan 2.2 | 15s | 3 | 3,000원 | $2 |
+| Pro ⭐ | Seedream 4.5 + Kling 2.6 Pro | 30s | 15 | 15,000원 | $7 |
+| Studio 👑 | Seedream 5.0 Lite + Kling 3.0 Pro | 60s | 40 | 40,000원 | $18 |
+
+**남은 액션 (과금 검증 — 마스터 승인 필요):**
+- [x] **Phase B Round 1: 3티어 이미지 비교 완료** (2026-04-18)
+  - 동일 프롬프트 `"a solo female vocalist on a dimly lit stage..."` 3티어 각 1장
+  - Draft FLUX Schnell 1024×576 / Pro Seedream 4.5 2560×1440 / Studio Seedream 5.0 Lite 2880×1620
+  - 1차 호출 Pro/Studio `invalidPixels 400` → `FAILURES.md #1` 박제 + 해상도 교정(카탈로그 `MODEL_MIN_PIXELS` 도입 + `validate_dimensions` 클라이언트 선검증)
+  - 2차 호출 3티어 전량 성공. 파일 `backend/scripts/phase_b_samples/*.jpg` 보존
+  - **판정**: Pro ↔ Draft 격차 압도적(실루엣 vs 프로 MV). Pro ↔ Studio는 스타일 차이 중심(사실 vs 영화). 3티어 가격 구조 정당화됨
+  - **과금**: `cost_usd=0.0` 리포트 (Runware 실 대시보드에서 확인 필요 — 마스터 액션)
+- [ ] Phase B Round 2 (선택): Pro 티어 비디오 1클립 i2v 검증 (~$0.5) — 이미지 움직임 품질 확인
+- [ ] 공개 베타 오픈
+
 **완료 기준**:
-- 첫 곡 완성 평균 15분 이내
-- 원가 편당 2,000원 이하
-- 품질 MOS 3.5/5.0 이상
+- 첫 곡 완성 평균 15분 이내 (Draft 5분 / Pro 12분 / Studio 25분)
+- 티어별 실원가가 `budget_usd` 상한 이내
+- 품질 MOS: Draft 3.0 / Pro 4.0 / Studio 4.5+
 - 베타 1개월 내 첫 매출 **100만원**
 
 ## 마스터 처리 필요 (막힘 신호 1건)

@@ -3,6 +3,10 @@
 Next.js 14 + Python FastAPI 보컬 트레이닝 AI 웹앱.
 parselmouth 4축 긴장 감지 + Claude Haiku 감각 코칭 + edge-tts 음성 합성.
 
+> ⚠️ **세션 시작 시 필수 읽기**:
+> - [`FAILURES.md`](./FAILURES.md) — 과거 실패 기록, 반복 금지
+> - `~/.claude/projects/.../memory/feedback_vocalmind_bond_quality_first.md` — 마스터 각인 (품질 + 낭비 방지)
+
 ## Quick Start
 
 ```bash
