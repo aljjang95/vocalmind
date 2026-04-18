@@ -370,6 +370,8 @@ parselmouth 기반으로 혀뿌리/턱/후두 긴장을 음성 신호에서 측�
 - ❌ `librosa.load()` → Windows parselmouth 데드락. `soundfile.read()` 사용 (예외: audio_postprocess.py에서 RMS/리샘플링용 librosa 사용은 허용)
 - ❌ `tension_detected = False` 고정 → TensionAnalyzer 실제 측정 사용
 - ❌ Claude 호출 시 cache_control 누락 → `{"type": "ephemeral"}` 필수
+- ❌ 프론트/백엔드 동일 의미 상수 이중 정의 → 한쪽만 수정 시 UI·실행 불일치 (예: `STUDIO_TIERS.imageResolution` vs `runware_catalog.TIERS.image_resolution`). DB 뷰 단일화 or 상수 주석에 "동기화 필수" 박제 (FAILURES #2, 2026-04-18)
+- ❌ 다른 프로젝트의 AIR/모델 상수 **이름**을 그대로 복붙 금지 — 크루즈자동의 `FLUX_SCHNELL="runware:101@1"`는 실제 Dev. 공식 문서 URL + 1회 실 호출 검증 결과를 주석으로 박제 (FAILURES #3, 2026-04-18)
 
 ## Gotchas
 
@@ -385,11 +387,20 @@ parselmouth 기반으로 혀뿌리/턱/후두 긴장을 음성 신호에서 측�
 - voice_feedback.py MAX_CHARS=200 (TTS 텍스트 길이 제한)
 - requirements.txt 패키지명: `praat-parselmouth` (pip 이름) ≠ `parselmouth` (import 이름)
 - next.config.js Permissions-Policy: 녹음 기능에 `microphone=(self)` 필수 (기본값 차단)
+- Seedream 4.5/5.0 Lite는 총 픽셀 **3,686,400 이상** 요구 — 1920×1080(2.07M)으로 호출하면 400 `invalidPixels`. 카탈로그 `MODEL_MIN_PIXELS`에 하한 박제. Pro 2560×1440 / Studio 2880×1620 이상 사용 (FAILURES #1, 2026-04-18)
+- Runware API 응답 `cost` 필드가 0.0로 리포트될 수 있음 — 실제 과금은 Runware 대시보드에서 대조 필요. pytest/job 리포트만 믿지 말 것 (2026-04-18)
+- Next.js `.next/types/` stale cache — 페이지 파일 삭제 후 tsc가 `Cannot find module '../app/.../page.js'` 에러. `rm -rf .next` 후 재실행 (2026-04-18)
+- pw.js auth 세션(storageState)은 3일 내외로 만료 — `pw.js auth-list`로 날짜 확인. Auth-gated 페이지 UI 검증 시 대안: `/pricing/*` 같은 PUBLIC_PATHS 하위에 임시 preview 페이지 생성 → 스크린샷 → 삭제 (2026-04-18)
 
 ### Playwright Anti-Detection 가이드 (2026-04-16)
 현재 playwright 미사용 (의존성만 등록). 향후 브라우저 자동화 필요 시:
 `~/.claude/research/infra/anti-detection-migration-guide.md` 참조.
 검증된 스택: rebrowser-playwright + ghost-cursor + init script (광고모음 v3).
+
+## Lessons Learned
+
+- **2026-04-18**: pytest/tsc 녹색만으로는 **값 불일치**(프론트·백엔드 상수 어긋남, 상수 이름-실체 어긋남) 감지 불가 — 품질 티어·모델 ID처럼 **숫자/문자열 정확성**이 핵심인 PR은 배포 전 반드시 실물 UI 스크린샷 1장 + 실 API 호출 1회로 대조할 것. 크루즈자동 메서드 이름 함정(2026-04-18) + 보컬마인드 STUDIO_TIERS 해상도 누락(FAILURES #2) + AIR 이름 의심(FAILURES #3)이 연달아 같은 뿌리
+- **2026-04-18**: Runware 같은 외부 모델 API 상수를 여러 프로젝트가 공유할 때 **AIR 문자열**만 truth source로 간주. 이름(SCHNELL/DEV)은 프로젝트마다 오명명 가능 — 글로벌 `~/.claude/projects/*/memory/reference_runware_air_catalog.md` 참조 후 검증
 
 
 ## Deployment
