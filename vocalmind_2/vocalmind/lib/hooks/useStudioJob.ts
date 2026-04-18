@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { StudioJob } from '@/types/studio';
 
@@ -10,17 +10,21 @@ interface UseStudioJobReturn {
   error: string | null;
 }
 
+const REFETCH_INTERVAL_MS = 15_000;
+
 /**
  * Supabase Realtime 구독으로 studio_jobs.id 단일 행의 실시간 상태를 추적한다.
  *
  * - 초기 로드: REST GET 으로 현재 상태
  * - 이후: postgres_changes 이벤트로 UPDATE 수신
+ * - 채널 에러/닫힘 시 자동 재구독 + 폴백 polling
  * - 언마운트 시 unsubscribe 필수
  */
 export function useStudioJob(jobId: string | null): UseStudioJobReturn {
   const [job, setJob] = useState<StudioJob | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (!jobId) {
@@ -34,23 +38,27 @@ export function useStudioJob(jobId: string | null): UseStudioJobReturn {
     setIsLoading(true);
     setError(null);
 
-    // 1) 초기 로드
-    supabase
-      .from('studio_jobs')
-      .select('*')
-      .eq('id', jobId)
-      .maybeSingle()
-      .then(({ data, error: loadError }) => {
-        if (cancelled) return;
-        if (loadError) {
-          setError(loadError.message);
-        } else if (data) {
-          setJob(toStudioJob(data));
-        }
-        setIsLoading(false);
-      });
+    const fetchJob = () => {
+      supabase
+        .from('studio_jobs')
+        .select('*')
+        .eq('id', jobId)
+        .maybeSingle()
+        .then(({ data, error: loadError }) => {
+          if (cancelled) return;
+          if (loadError) {
+            setError(loadError.message);
+          } else if (data) {
+            setJob(toStudioJob(data));
+          }
+          setIsLoading(false);
+        });
+    };
 
-    // 2) 실시간 구독
+    // 1) 초기 로드
+    fetchJob();
+
+    // 2) 실시간 구독 (status callback으로 재연결 처리)
     const channel = supabase
       .channel(`studio_job_${jobId}`)
       .on(
@@ -66,10 +74,36 @@ export function useStudioJob(jobId: string | null): UseStudioJobReturn {
           if (payload.new) setJob(toStudioJob(payload.new));
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (cancelled) return;
+
+        if (status === 'SUBSCRIBED') {
+          // 구독 성공 — REST 초기 로드와 구독 사이 빈틈 보정
+          fetchJob();
+          stopPolling();
+        } else if (status === 'CHANNEL_ERROR' || status === 'CLOSED' || status === 'TIMED_OUT') {
+          // 연결 끊김 — 폴백 polling 시작
+          startPolling();
+        }
+      });
+
+    function startPolling() {
+      if (pollRef.current) return;
+      pollRef.current = setInterval(() => {
+        if (!cancelled) fetchJob();
+      }, REFETCH_INTERVAL_MS);
+    }
+
+    function stopPolling() {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    }
 
     return () => {
       cancelled = true;
+      stopPolling();
       supabase.removeChannel(channel);
     };
   }, [jobId]);

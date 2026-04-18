@@ -13,7 +13,7 @@ interface Props {
 }
 
 export default function WhyPhase({ stage, onNext }: Props) {
-  const tts = useTTS(stage.whyText);
+  const tts = useTTS(stage.whyText, 'master');
   const [showTtsFallback, setShowTtsFallback] = useState(false);
   const hasAudioUrl = !!stage.whyAudioUrl;
 

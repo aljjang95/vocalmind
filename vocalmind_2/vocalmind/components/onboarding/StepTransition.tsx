@@ -28,7 +28,7 @@ export default function StepTransition() {
   const getDestination = () => {
     if (plan === 'hobby') return '/hobby';
     if (plan === 'pro') return `/journey/${suggestedStage}`;
-    return '/dashboard';
+    return '/journey';
   };
 
   const handleStart = () => {

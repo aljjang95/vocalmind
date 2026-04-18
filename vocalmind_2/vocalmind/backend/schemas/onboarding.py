@@ -26,3 +26,4 @@ class OnboardingAnalyzeResponse(BaseModel):
 
 class TTSRequest(BaseModel):
     text: str
+    voice: str = "default"  # "default"=edge-tts, "master"=CosyVoice3 제로샷

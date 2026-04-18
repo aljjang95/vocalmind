@@ -102,7 +102,7 @@ export default function AIStudioBeta() {
                 </span>
               </div>
               <h3 className="text-2xl font-bold text-white md:text-3xl">
-                커버 1편 <span className="text-emerald-300">5,000원</span>
+                커버 1편 <span className="text-emerald-300">3,000원부터</span>
               </h3>
               <p className="mt-2 max-w-[460px] text-sm text-white/60">
                 선불 크레딧 결제 · 쓴 만큼만 차감 · 잔액은 탈퇴 전까지 만료 없음.
@@ -118,7 +118,7 @@ export default function AIStudioBeta() {
                 AI 스튜디오 체험 →
               </Link>
               <p className="text-[11px] text-white/40">
-                베타 기간 한정 — 첫 3편 무료 체험 예정
+                신규 가입 시 5크레딧 지급
               </p>
             </div>
           </div>

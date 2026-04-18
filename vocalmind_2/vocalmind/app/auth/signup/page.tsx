@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 export default function SignupPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const nextUrl = searchParams.get('next');
+  const nextUrl = searchParams.get('next') ?? '/journey';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -21,7 +21,7 @@ export default function SignupPage() {
     await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/auth/callback${nextUrl ? `?next=${encodeURIComponent(nextUrl)}` : ''}`,
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextUrl)}`,
         ...(provider === 'kakao' && { scopes: 'profile_nickname profile_image account_email' }),
       },
     });
@@ -38,7 +38,7 @@ export default function SignupPage() {
       password,
       options: {
         data: { name },
-        emailRedirectTo: `${window.location.origin}/auth/callback${nextUrl ? `?next=${encodeURIComponent(nextUrl)}` : ''}`,
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextUrl)}`,
       },
     });
 
@@ -212,7 +212,7 @@ export default function SignupPage() {
 
           <p className="text-center mt-6 text-[var(--text-muted)] text-sm">
             이미 계정이 있으신가요?{' '}
-            <Link href={`/auth/login${nextUrl ? `?next=${encodeURIComponent(nextUrl)}` : ''}`} className="text-[var(--accent-light)] no-underline font-medium">
+            <Link href={`/auth/login?next=${encodeURIComponent(nextUrl)}`} className="text-[var(--accent-light)] no-underline font-medium">
               로그인
             </Link>
           </p>

@@ -204,18 +204,63 @@ async def runware_callback(
     background: BackgroundTasks,
     x_orchestrator_secret: str | None = Header(default=None),
 ) -> CallbackResponse:
-    """Runware 비동기 태스크 완료 알림 (polling 또는 webhook)."""
+    """Runware 비동기 태스크 완료 알림 (polling 또는 webhook).
+
+    scene_image_gen / scene_video_gen 단계의 씬별 결과를 축적하고,
+    모든 씬이 완료되면 다음 단계로 전이 + dispatch.
+    """
     _verify_secret(x_orchestrator_secret)
 
-    # Phase 0: scene_image_gen/scene_video_gen/lipsync의 완료 집계는
-    # studio_pipeline.accumulate_scene_result 에서 처리 (W2 후속에서 추가)
-    # 여기서는 실패만 먼저 처리
     if req.status == "failed":
         attempts = pipeline.increment_attempt(req.job_id)
         job = pipeline.get_job(req.job_id)
         if attempts >= int(job["max_attempts"]):
             pipeline.mark_failed(req.job_id, failed_step=req.step, error=req.error or "unknown")
             return CallbackResponse(accepted=True, next_step="failed")
+        logger.warning(
+            "Runware task 실패 (attempt %d/%s) job_id=%s step=%s task_id=%s error=%s",
+            attempts, job["max_attempts"], req.job_id, req.step, req.task_id, req.error,
+        )
+        return CallbackResponse(accepted=True, next_step=req.step)
+
+    # 성공 — 씬 결과 URL 축적
+    if req.scene_id and req.result_url:
+        try:
+            pipeline.update_scene_result(req.job_id, req.scene_id, req.step, req.result_url)
+        except pipeline.PipelineError:
+            logger.exception(
+                "scene_result 업데이트 실패 job_id=%s scene_id=%s step=%s",
+                req.job_id, req.scene_id, req.step,
+            )
+            return CallbackResponse(accepted=True, next_step=req.step)
+    else:
+        logger.warning(
+            "Runware 콜백 scene_id 또는 result_url 누락 job_id=%s step=%s task_id=%s",
+            req.job_id, req.step, req.task_id,
+        )
+
+    # 모든 씬 완료 여부 확인 → 다음 단계 전이
+    try:
+        if pipeline.all_scenes_done(req.job_id, req.step):
+            next_step = _next_step(req.step)
+            if next_step is None:
+                return CallbackResponse(accepted=True, next_step=None)
+
+            result = pipeline.transition(
+                req.job_id,
+                expected_status=req.step,
+                next_status=next_step,
+            )
+            if result.applied:
+                logger.info(
+                    "모든 씬 완료 → %s 전이 job_id=%s", next_step, req.job_id,
+                )
+                background.add_task(_dispatch_step, req.job_id, next_step)
+            return CallbackResponse(accepted=True, next_step=next_step)
+    except pipeline.PipelineError:
+        logger.exception(
+            "all_scenes_done 체크 실패 job_id=%s step=%s", req.job_id, req.step,
+        )
 
     return CallbackResponse(accepted=True, next_step=req.step)
 
@@ -234,7 +279,11 @@ def _next_step(current: str) -> str | None:
 
 
 def _result_to_fields(step: str, result: dict) -> dict:
-    """Modal 결과 dict → studio_jobs 컬럼 매핑."""
+    """Modal 결과 dict → studio_jobs 컬럼 매핑.
+
+    composing: compose_final 콜백이 landscape/portrait/thumbnail/c2pa 전부 반환.
+               formatting/watermarking은 auto-transition이므로 여기서 처리하지 않음.
+    """
     mapping = {
         "vocal_separating": {
             "vocals_path": result.get("vocals_path"),
@@ -242,11 +291,11 @@ def _result_to_fields(step: str, result: dict) -> dict:
         },
         "vocal_rvc": {"converted_vocals_path": result.get("converted_vocals_path")},
         "vocal_mixing": {"final_vocal_mix_path": result.get("final_vocal_mix_path")},
-        "composing": {"landscape_url": result.get("landscape_path")},
-        "formatting": {"portrait_url": result.get("portrait_path")},
-        "watermarking": {
-            "c2pa_signed": result.get("c2pa_signed", False),
+        "composing": {
+            "landscape_url": result.get("landscape_path"),
+            "portrait_url": result.get("portrait_path"),
             "thumbnail_url": result.get("thumbnail_path"),
+            "c2pa_signed": result.get("c2pa_signed", False),
         },
     }
     fields = mapping.get(step, {})
@@ -316,7 +365,19 @@ def _dispatch_vocal_separating(job_id: str) -> None:
         modal_dispatcher.dispatch_demucs(job_id, input_url, output_prefix)
     except modal_dispatcher.DispatchError as e:
         logger.exception("demucs dispatch 실패: %s", e)
-        pipeline.increment_attempt(job_id)
+        attempts = pipeline.increment_attempt(job_id)
+        job = pipeline.get_job(job_id)
+        if attempts >= int(job["max_attempts"]):
+            logger.error(
+                "demucs dispatch max_attempts(%d) 초과 → mark_failed job_id=%s",
+                attempts, job_id,
+            )
+            pipeline.mark_failed(job_id, failed_step="vocal_separating", error=str(e))
+        else:
+            logger.warning(
+                "demucs dispatch 실패 (attempt %d/%s) — /start 재호출로 재시도 가능 job_id=%s",
+                attempts, job["max_attempts"], job_id,
+            )
 
 
 def _dispatch_step(job_id: str, step: str) -> None:
@@ -375,6 +436,17 @@ def _dispatch_step(job_id: str, step: str) -> None:
             if result.applied:
                 _dispatch_step(job_id, "composing")
 
+        elif step == "vocal_mixing":
+            vocals_url = _signed_url(job.get("converted_vocals_path", ""))
+            instrumental_url = _signed_url(job.get("instrumental_path", ""))
+            if not vocals_url or not instrumental_url:
+                pipeline.mark_failed(job_id, step, "vocal_mixing 입력 누락")
+                return
+            output_prefix = f"{job['user_id']}/{job_id}"
+            modal_dispatcher.dispatch_mix(
+                job_id, vocals_url, instrumental_url, output_prefix,
+            )
+
         elif step == "composing":
             scene_plan = job.get("scene_plan") or {}
             scenes = scene_plan.get("scenes", [])
@@ -392,13 +464,102 @@ def _dispatch_step(job_id: str, step: str) -> None:
                 output_prefix=output_prefix,
             )
 
+        elif step == "formatting":
+            # compose_final이 이미 landscape/portrait 모두 처리했음 → 즉시 watermarking 전이
+            result = pipeline.transition(
+                job_id, expected_status="formatting", next_status="watermarking",
+            )
+            if result.applied:
+                _dispatch_step(job_id, "watermarking")
+
+        elif step == "watermarking":
+            # Stage 3 모더레이션 게이트 + 즉시 finalizing 전이
+            gate = _stage3_moderation_gate(job_id, {})
+            if gate is not None:
+                return  # mark_failed already called inside
+            result = pipeline.transition(
+                job_id, expected_status="watermarking", next_status="finalizing",
+            )
+            if result.applied:
+                _dispatch_step(job_id, "finalizing")
+
+        elif step == "finalizing":
+            _finalize_job(job_id)
+
         else:
-            # 아직 실구현 안 된 단계는 로깅만 (W2 후반부 확장)
             logger.info("[todo] dispatch step=%s for job_id=%s", step, job_id)
 
     except modal_dispatcher.DispatchError as e:
         logger.exception("dispatch 실패 step=%s: %s", step, e)
         pipeline.increment_attempt(job_id)
+
+
+def _finalize_job(job_id: str) -> None:
+    """covers 레코드 생성 + completed 전이.
+
+    landscape_url / portrait_url / thumbnail_url 세 필드가 모두 있어야 진행.
+    """
+    import httpx
+
+    try:
+        job = pipeline.get_job(job_id)
+    except pipeline.PipelineError:
+        logger.exception("finalize: job 조회 실패 %s", job_id)
+        return
+
+    landscape = job.get("landscape_url")
+    portrait = job.get("portrait_url")
+    thumbnail = job.get("thumbnail_url")
+    if not landscape or not portrait or not thumbnail:
+        pipeline.mark_failed(job_id, "finalizing", "최종 URL 누락")
+        return
+
+    # covers 테이블 UPSERT (job_id unique index 기준)
+    sb_url = pipeline._sb_url()
+    cover_data = {
+        "user_id": job["user_id"],
+        "job_id": job_id,
+        "title": job.get("title") or "AI Cover",
+        "landscape_url": landscape,
+        "portrait_url": portrait,
+        "thumbnail_url": thumbnail,
+        "duration_sec": job.get("duration_sec") or 30.0,
+        "sns_uploadable": False,
+    }
+    headers = {
+        **pipeline._sb_headers(),
+        "Prefer": "resolution=merge-duplicates,return=representation",
+    }
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.post(
+                f"{sb_url}/rest/v1/covers",
+                json=cover_data,
+                headers=headers,
+            )
+            if resp.status_code >= 400:
+                logger.error(
+                    "covers insert 실패 (%d): %s", resp.status_code, resp.text[:200],
+                )
+                pipeline.mark_failed(
+                    job_id, "finalizing",
+                    f"covers insert 실패: {resp.text[:200]}",
+                )
+                return
+    except Exception as e:
+        logger.exception("covers insert 예외: %s", e)
+        pipeline.mark_failed(job_id, "finalizing", str(e))
+        return
+
+    # completed 전이
+    result = pipeline.transition(
+        job_id,
+        expected_status="finalizing",
+        next_status="completed",
+        fields={"completed_at": "now()"},
+    )
+    if result.applied:
+        logger.info("job 완료 job_id=%s", job_id)
 
 
 def _redispatch_step(job_id: str, step: str) -> None:

@@ -23,15 +23,19 @@ logger = logging.getLogger(__name__)
 # Modal 배포 URL (환경변수로 관리)
 MODAL_DEMUCS_URL = os.environ.get(
     "MODAL_DEMUCS_URL",
-    "https://vocalmind--vocalmind-demucs-separate.modal.run",
+    "https://aljjang95--vocalmind-demucs-separate.modal.run",
 )
 MODAL_RVC_URL = os.environ.get(
     "MODAL_RVC_URL",
-    "https://vocalmind--vocalmind-rvc-convert-studio.modal.run",
+    "https://aljjang95--vocalmind-rvc-convert-studio.modal.run",
 )
 MODAL_COMPOSE_URL = os.environ.get(
     "MODAL_COMPOSE_URL",
-    "https://vocalmind--vocalmind-compose-compose-final.modal.run",
+    "https://aljjang95--vocalmind-compose-compose-final.modal.run",
+)
+MODAL_MIX_URL = os.environ.get(
+    "MODAL_MIX_URL",
+    "https://aljjang95--vocalmind-compose-mix-audio.modal.run",
 )
 
 
@@ -82,7 +86,7 @@ def dispatch_demucs(job_id: str, input_url: str, output_prefix: str) -> dict:
         "step": "vocal_separating",
         "output_bucket": "studio-recording",
         "output_prefix": output_prefix,
-    })
+    }, timeout=60.0)
 
 
 def dispatch_rvc(
@@ -97,7 +101,22 @@ def dispatch_rvc(
         "step": "vocal_rvc",
         "output_bucket": "studio-recording",
         "output_prefix": output_prefix,
-    })
+    }, timeout=60.0)
+
+
+def dispatch_mix(
+    job_id: str, vocals_url: str, instrumental_url: str, output_prefix: str,
+) -> dict:
+    """보컬 + 반주 믹싱. Modal이 콜백으로 {final_vocal_mix_path} POST."""
+    return _post(MODAL_MIX_URL, {
+        "job_id": job_id,
+        "vocals_url": vocals_url,
+        "instrumental_url": instrumental_url,
+        "output_bucket": "studio-recording",
+        "output_prefix": output_prefix,
+        "callback_url": _callback_url(),
+        "step": "vocal_mixing",
+    }, timeout=120.0)
 
 
 def dispatch_compose(

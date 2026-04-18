@@ -82,8 +82,8 @@ class TestSelectModel:
 
 
 class TestStyleAnchors:
-    def test_all_four_styles_have_anchors(self):
-        assert set(cat.STYLE_ANCHORS) == {"cinematic", "cozy", "retro", "ghibli"}
+    def test_all_styles_have_anchors(self):
+        assert set(cat.STYLE_ANCHORS) == {"cinematic", "cozy", "retro", "ghibli", "neon_city", "fantasy"}
 
     def test_anchors_are_non_trivial(self):
         for style, anchor in cat.STYLE_ANCHORS.items():

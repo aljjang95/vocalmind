@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
     .from('voice_identities')
     .update({ status: 'archived' })
     .eq('user_id', user.id)
-    .in('status', ['collecting', 'ready', 'failed']);
+    .in('status', ['collecting', 'ready', 'failed', 'training']);
 
   const sourceClips = clips.map((c, i) => ({
     sentence_index: i,

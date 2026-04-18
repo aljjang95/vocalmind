@@ -108,9 +108,38 @@ export async function POST(req: NextRequest) {
   });
 
   if (grantErr) {
-    console.error('크레딧 지급 실패 payment_id=%s:', payment.id, grantErr);
+    // 결제는 성공했지만 크레딧 지급 실패 → vocal_payments.status를 'grant_failed'로 마킹
+    // 관리자가 payment_id로 추적 후 수동 or 배치 재지급 가능
+    const { error: markErr } = await supabase
+      .from('vocal_payments')
+      .update({ status: 'grant_failed' })
+      .eq('id', payment.id);
+
+    if (markErr) {
+      console.error(
+        '[CRITICAL] grant_credits 실패 + vocal_payments 마킹도 실패 — payment_id=%s toss_order_id=%s grantErr=%o markErr=%o',
+        payment.id,
+        orderId,
+        grantErr,
+        markErr,
+      );
+    } else {
+      console.error(
+        '[CRITICAL] grant_credits 실패 (status=grant_failed 마킹 완료) — payment_id=%s toss_order_id=%s amount_krw=%d credits=%d grantErr=%o',
+        payment.id,
+        orderId,
+        amount,
+        pack.credits,
+        grantErr,
+      );
+    }
+
     return NextResponse.json(
-      { error: '크레딧 지급 실패 — 관리자에게 문의하세요', code: 'GRANT_ERROR' },
+      {
+        error: '크레딧 지급 실패 — 관리자에게 문의하세요',
+        code: 'GRANT_ERROR',
+        payment_id: payment.id,
+      },
       { status: 500 },
     );
   }

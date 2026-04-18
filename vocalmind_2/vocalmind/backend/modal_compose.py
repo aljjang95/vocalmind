@@ -366,6 +366,110 @@ def _post_callback(url: str, payload: dict) -> None:
         print(f"[compose] callback 실패 job_id={payload.get('job_id')}: {e}")
 
 
+# ── 보컬 믹싱 워커 ────────────────────────────────────────────────
+
+@app.function(
+    image=compose_image,
+    cpu=2.0,
+    memory=4096,
+    timeout=300,
+    scaledown_window=60,
+    secrets=COMPOSE_SECRETS,
+)
+def _process_mix(
+    job_id: str,
+    vocals_url: str,
+    instrumental_url: str,
+    output_bucket: str,
+    output_prefix: str,
+    callback_url: str,
+    step: str,
+) -> None:
+    """보컬 + 반주 믹싱 작업 → 완료 시 orchestrator로 callback POST."""
+    import traceback
+    import tempfile
+    from pathlib import Path
+
+    work = Path(tempfile.mkdtemp())
+    try:
+        result = _do_mix(
+            job_id, vocals_url, instrumental_url, output_bucket, output_prefix, work,
+        )
+        _post_callback(callback_url, {
+            "job_id": job_id, "step": step, "status": "success", "result": result,
+        })
+    except Exception as e:
+        _post_callback(callback_url, {
+            "job_id": job_id, "step": step, "status": "failed",
+            "error": f"{type(e).__name__}: {e}",
+            "result": {"traceback": traceback.format_exc()[:2000]},
+        })
+    finally:
+        import shutil
+        shutil.rmtree(str(work), ignore_errors=True)
+
+
+def _do_mix(
+    job_id: str,
+    vocals_url: str,
+    instrumental_url: str,
+    output_bucket: str,
+    output_prefix: str,
+    work: "Path",
+) -> dict:
+    """보컬과 반주를 FFmpeg amix로 합산 → Supabase Storage 업로드.
+
+    보컬 volume=1.0, 반주 volume=0.85 비율로 혼합.
+    """
+    import os
+    import subprocess
+
+    import httpx
+
+    # 1) 소스 다운로드
+    vocals_path = work / "vocals.wav"
+    instrumental_path = work / "instrumental.wav"
+    with httpx.Client(timeout=120.0) as client:
+        for url, dest in [(vocals_url, vocals_path), (instrumental_url, instrumental_path)]:
+            with client.stream("GET", url) as r:
+                r.raise_for_status()
+                with open(dest, "wb") as f:
+                    for chunk in r.iter_bytes():
+                        f.write(chunk)
+
+    # 2) FFmpeg amix: 보컬 1.0 + 반주 0.85 혼합
+    output_path = work / "final_mix.m4a"
+    subprocess.run(
+        [
+            "ffmpeg", "-y",
+            "-i", str(vocals_path),
+            "-i", str(instrumental_path),
+            "-filter_complex",
+            "[0:a]volume=1.0[v];[1:a]volume=0.85[i];[v][i]amix=inputs=2:duration=longest",
+            "-c:a", "aac", "-b:a", "192k",
+            str(output_path),
+        ],
+        check=True, capture_output=True,
+    )
+
+    # 3) Supabase Storage 업로드
+    from supabase import create_client
+    sb = create_client(
+        os.environ["SUPABASE_URL"],
+        os.environ["SUPABASE_SERVICE_ROLE_KEY"],
+    )
+
+    mix_key = f"{output_prefix}/final_mix.m4a"
+    sb.storage.from_(output_bucket).upload(
+        mix_key, output_path.read_bytes(),
+        file_options={"content-type": "audio/mp4", "upsert": "true"},
+    )
+
+    return {
+        "final_vocal_mix_path": f"{output_bucket}/{mix_key}",
+    }
+
+
 # ── HTTP 엔드포인트: spawn + 즉시 응답 ───────────────────────────────
 
 @app.function(
@@ -393,6 +497,42 @@ async def compose_final(request):
         body["final_vocal_mix_url"],
         body.get("lyrics_lines"),
         body.get("output_bucket", "mv-output"),
+        body["output_prefix"],
+        body["callback_url"],
+        body["step"],
+    )
+    return {"accepted": True, "job_id": body["job_id"]}
+
+
+@app.function(
+    image=compose_image,
+    cpu=0.5,
+    memory=512,
+    timeout=30,
+    secrets=COMPOSE_SECRETS,
+)
+@modal.fastapi_endpoint(method="POST")
+async def mix_audio(request):
+    """POST JSON — _process_mix를 spawn으로 비동기 실행 → 즉시 accepted 응답.
+
+    payload:
+        job_id, vocals_url, instrumental_url,
+        output_bucket, output_prefix, callback_url, step
+    """
+    body = await request.json()
+    required = [
+        "job_id", "vocals_url", "instrumental_url",
+        "output_prefix", "callback_url", "step",
+    ]
+    missing = [k for k in required if body.get(k) is None]
+    if missing:
+        return {"error": f"필수 필드 누락: {missing}", "code": "MISSING_FIELDS"}
+
+    _process_mix.spawn(
+        body["job_id"],
+        body["vocals_url"],
+        body["instrumental_url"],
+        body.get("output_bucket", "studio-recording"),
         body["output_prefix"],
         body["callback_url"],
         body["step"],

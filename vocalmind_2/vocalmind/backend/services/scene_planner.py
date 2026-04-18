@@ -16,7 +16,7 @@ import infra.anthropic_client as ai
 
 logger = logging.getLogger(__name__)
 
-StylePreset = Literal["cinematic", "cozy", "neon_city", "fantasy"]
+StylePreset = Literal["cinematic", "cozy", "retro", "ghibli", "neon_city", "fantasy"]
 
 SCENE_SYSTEM = """당신은 뮤직비디오 씬 디자이너입니다.
 
@@ -34,6 +34,8 @@ SCENE_SYSTEM = """당신은 뮤직비디오 씬 디자이너입니다.
 ## 스타일 프리셋별 톤
 - cinematic: 영화적 조명, anamorphic lens flare, 컬러 그레이딩, 깊은 쉐도우
 - cozy: 따뜻한 골든아워, 홈 인테리어, 담요와 촛불, 소프트 포커스
+- retro: 레트로 사이버펑크, synth-wave, 네온 조명, 빈티지 감성
+- ghibli: 지브리풍 수채화 애니메이션, 부드러운 파스텔, 노스탤직한 전원 풍경
 - neon_city: 사이버펑크 야경, 비 내리는 아스팔트, 네온 반사, 홀로그램
 - fantasy: 초현실 풍경, 꿈결 같은 안개, 유영하는 꽃잎, 마법의 빛
 
@@ -133,6 +135,14 @@ _STYLE_ANCHORS: dict[str, str] = {
         "warm interior photography, golden hour sunlight filtered through sheer curtains, "
         "Kinfolk magazine aesthetic, muted autumn palette of cream and terracotta, "
         "soft rim lighting, analog film look with gentle bokeh, 50mm lens",
+    "retro":
+        "Blade Runner 2049 neon, volumetric fog, teal-and-magenta palette, "
+        "synth-wave cyberpunk atmosphere, rain reflection, vintage CRT scan lines, "
+        "retro-futuristic interior, analog neon tube lighting",
+    "ghibli":
+        "Studio Ghibli hand-painted anime aesthetic, soft watercolor textures, "
+        "pastoral countryside backgrounds, warm nostalgic tone, Hayao Miyazaki style, "
+        "detailed natural foliage, gentle breeze motion, pastel sky",
     "neon_city":
         "cyberpunk night cinematography, wet reflective asphalt, holographic billboards in Japanese and English, "
         "neon magenta and cyan rim lighting, atmospheric haze and light rain, "
@@ -159,6 +169,22 @@ _FALLBACK_PROMPTS: dict[str, list[str]] = {
         "candlelit reading nook framed by tall wooden bookshelves, beeswax candle flickering, soft cashmere throw pillow, thick dog-eared novel open face down",
         "quiet kitchen window at dusk, herbs in terracotta pots on the sill, warm pendant light above, distant glow of a wood-fired stove reflecting on copper pots",
         "gentle snow falling past a frosted cottage window, firewood stacked neatly inside, knitted scarf folded on a wooden bench, muted winter afternoon light",
+    ],
+    "retro": [
+        "synthwave sunset over a retro-futuristic city grid, chrome sports car parked on an empty highway, pink and purple gradient sky with geometric sun, palm tree silhouettes",
+        "close-up of a glowing vintage jukebox in a dimly lit 1980s diner, neon tube signs reflected in chrome surfaces, checkerboard tile floor, warm amber and magenta",
+        "faceless figure in a leather jacket walking through a rain-soaked alley, flickering neon signs in Japanese and Korean, puddles reflecting teal and magenta, VHS grain overlay",
+        "top-down view of a vintage cassette tape on a glass table, purple neon light bleeding through venetian blinds, scattered polaroid photos, analog synth keyboard in background",
+        "wide shot of a retro arcade room at midnight, rows of glowing CRT monitors, pixelated reflections on the floor, a single empty stool bathed in blue light",
+        "close-up of a rotating vinyl record under laser beam lighting, prismatic light spectrum across smoke, vintage turntable with chrome arm, dark velvet background",
+    ],
+    "ghibli": [
+        "hand-painted countryside path winding through golden rice paddies at sunset, a small wooden bridge over a gentle stream, cotton-candy clouds, warm pastel palette",
+        "cozy forest clearing with oversized mushrooms and soft moss, fireflies beginning to glow at dusk, a small lantern hanging from a twisted branch, watercolor textures",
+        "wide view of a hilltop meadow with wildflowers swaying in the breeze, a distant European-style town with red rooftops, cumulus clouds casting gentle shadows",
+        "interior of a cluttered but warm attic workshop, sunlight streaming through a round window, floating dust motes, dried herbs hanging from wooden beams, hand-painted style",
+        "a wooden pier extending into a calm mountain lake at dawn, mist rising from the water surface, distant snow-capped peaks in soft lavender, a small rowboat tied to the post",
+        "rain falling gently on a cobblestone village street, paper lanterns glowing softly under eaves, reflections in shallow puddles, nostalgic warm watercolor atmosphere",
     ],
     "neon_city": [
         "cyberpunk rooftop helipad at midnight overlooking a dense megacity, colossal animated holographic billboards in pink and cyan rising from the skyline, atmospheric rain, distant air traffic",

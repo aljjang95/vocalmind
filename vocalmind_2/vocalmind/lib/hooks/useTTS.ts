@@ -22,11 +22,12 @@ function cacheSet(key: string, url: string) {
   audioCache.set(key, url);
 }
 
-export function useTTS(text: string): UseTTSReturn {
+export function useTTS(text: string, voice: 'default' | 'master' = 'default'): UseTTSReturn {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const cacheKey = `${voice}:${text}`;
 
   const stop = useCallback(() => {
     if (audioRef.current) {
@@ -47,7 +48,7 @@ export function useTTS(text: string): UseTTSReturn {
       return;
     }
 
-    const cached = audioCache.get(text);
+    const cached = audioCache.get(cacheKey);
     if (cached) {
       const audio = new Audio(cached);
       audioRef.current = audio;
@@ -66,7 +67,7 @@ export function useTTS(text: string): UseTTSReturn {
       const res = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, voice }),
         signal: controller.signal,
       });
 
@@ -77,7 +78,7 @@ export function useTTS(text: string): UseTTSReturn {
 
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
-      cacheSet(text, url);
+      cacheSet(cacheKey, url);
 
       const audio = new Audio(url);
       audioRef.current = audio;
@@ -90,7 +91,7 @@ export function useTTS(text: string): UseTTSReturn {
       if (err instanceof DOMException && err.name === 'AbortError') return;
       setIsLoading(false);
     }
-  }, [text, isLoading, isPlaying, stop]);
+  }, [text, voice, cacheKey, isLoading, isPlaying, stop]);
 
   useEffect(() => {
     return () => {

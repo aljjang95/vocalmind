@@ -6,6 +6,7 @@
 import type { HLBCurriculumStage } from '@/types';
 import { stageDemoAudioUrl } from './stageDemoAudio';
 import { stageDemoVideo } from './stageDemoVideo';
+import { stageWhyAudioUrl } from './stageWhyAudio';
 
 /* Reusable scale patterns */
 const ROUNDING = [0, 2, 4, 5, 7, 5, 4, 2, 0];
@@ -38,8 +39,8 @@ export const hlbCurriculum: HLBCurriculumStage[] = [
       onStruggle: '설근의 무게에 맡겨 자연스럽게 떨어트리는 감각을 찾아보세요.',
       observationQuestion: '지금 목이 편한가요?',
     },
-    whyText: '혀가 무겁게 떨어져 있을 때 목 전체가 자연스럽게 열리고, 성대도 편하게 울릴 수 있습니다. 혀에 힘이 들어가면 목 전체가 긴장되어 소리가 답답해지고 피로도 빨리 쌓여요. 먼저 이 편안한 느낌을 몸으로 기억하는 게 모든 발성의 기초입니다.',
-    demoScript: '고개를 살짝 들고 혀, 목, 턱을 모두 빼놓으세요. 자면서 입 벌어지는 그 느낌처럼요. 그 상태에서 \'어~\'를 3초 길게 내보면서 혀의 무게를 느껴보세요.',
+    whyText: '설근(혀뿌리)이 자기 무게에 맡겨져 아래로 떨어져 있을 때, 목 전체가 자연스럽게 열리고 성대도 편하게 울릴 수 있습니다. 설근에 힘이 들어가면 목 안쪽이 좁아지면서 소리가 답답해지고 피로도 빨리 쌓여요. 먼저 설근의 무게를 느끼며 편안하게 놓아주는 감각을 몸으로 기억하는 게 모든 발성의 기초입니다.',
+    demoScript: '고개를 살짝 들고 설근(혀뿌리), 목, 턱을 모두 빼놓으세요. 자면서 입 벌어지는 그 느낌처럼요. 그 상태에서 \'어~\'를 3초 길게 내보면서 설근의 무게를 느껴보세요.',
   },
   {
     id: 2,
@@ -716,6 +717,9 @@ export function getStageById(id: number): HLBCurriculumStage | undefined {
 for (const stage of hlbCurriculum) {
   const url = stageDemoAudioUrl[stage.id];
   if (url) stage.demoAudioUrl = url;
+
+  const whyUrl = stageWhyAudioUrl[stage.id];
+  if (whyUrl) stage.whyAudioUrl = whyUrl;
 
   const video = stageDemoVideo[stage.id];
   if (video) {

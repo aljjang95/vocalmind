@@ -69,9 +69,21 @@ async def analyze(audio: UploadFile):
 
 @router.post("/tts")
 async def tts(req: TTSRequest):
-    """텍스트 → 음성 합성 (edge-tts)."""
+    """텍스트 → 음성 합성. voice=master이면 CosyVoice3 제로샷, 아니면 edge-tts."""
     if not req.text or not req.text.strip():
         raise HTTPException(400, "텍스트가 비어있습니다")
+
+    if req.voice == "master":
+        try:
+            from services.cosyvoice_tts import synthesize_zero_shot
+            audio_bytes = synthesize_zero_shot(req.text)
+        except RuntimeError as e:
+            raise HTTPException(503, str(e))
+        except Exception as e:
+            raise HTTPException(500, f"마스터 음성 합성 실패: {e}")
+        if audio_bytes is None:
+            raise HTTPException(500, "마스터 음성 합성 실패")
+        return Response(content=audio_bytes, media_type="audio/mpeg")
 
     audio_bytes = await synthesize_feedback(req.text)
     if audio_bytes is None:

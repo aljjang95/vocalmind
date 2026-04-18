@@ -73,13 +73,15 @@ def process_scene_images(
             continue
 
         prompt = scene["prompt"]
+        # FLUX Schnell=4 steps, Seedream=20 steps (품질 확보)
+        steps = 4 if "runware:100" in model else 20
         try:
             url, cost = rw.generate_image_with_cost(
                 prompt,
                 width=width,
                 height=height,
                 model=model,
-                steps=4,
+                steps=steps,
             )
             total_cost += cost
             out.append({**scene, "image_url": url, "image_cost_usd": cost, "image_model": model})

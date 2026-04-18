@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: '로그인이 필요합니다', code: 'UNAUTHORIZED' }, { status: 401 });
   }
 
-  const body = await request.json() as { text?: string };
+  const body = await request.json() as { text?: string; voice?: string };
 
   if (!body.text?.trim()) {
     return NextResponse.json(
@@ -19,11 +19,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const voice = body.voice === 'master' ? 'master' : 'default';
+
   try {
     const res = await fetch(`${BACKEND}/onboarding/tts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: body.text }),
+      body: JSON.stringify({ text: body.text, voice }),
     });
 
     if (!res.ok) {
@@ -33,9 +35,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const contentType = res.headers.get('Content-Type') || 'audio/mpeg';
     const audioBuffer = await res.arrayBuffer();
     return new NextResponse(audioBuffer, {
-      headers: { 'Content-Type': 'audio/mpeg' },
+      headers: { 'Content-Type': contentType },
     });
   } catch {
     return NextResponse.json(

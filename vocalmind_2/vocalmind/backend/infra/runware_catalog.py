@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 QualityTier = Literal["draft", "pro", "studio"]
-StylePreset = Literal["cinematic", "cozy", "retro", "ghibli"]
+StylePreset = Literal["cinematic", "cozy", "retro", "ghibli", "neon_city", "fantasy"]
 Kind = Literal["image", "video", "lipsync"]
 
 
@@ -137,6 +137,12 @@ STYLE_ANCHORS: dict[StylePreset, str] = {
     "ghibli":
         "Studio Ghibli hand-painted anime aesthetic, soft watercolor textures, "
         "pastoral backgrounds, warm nostalgic tone, Hayao Miyazaki style",
+    "neon_city":
+        "Blade Runner 2049 neon, volumetric fog, teal-and-magenta palette, "
+        "synth-wave cyberpunk atmosphere, rain reflection on wet asphalt",
+    "fantasy":
+        "surreal dreamscape, ethereal floating petals, magical luminescence, "
+        "soft fog, enchanted forest, otherworldly pastel atmosphere",
 }
 
 

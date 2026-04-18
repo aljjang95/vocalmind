@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useStudioJob } from '@/lib/hooks/useStudioJob';
 
@@ -55,21 +55,12 @@ export default function CoverDetailClient({ jobId }: Props) {
         />
       )}
 
-      {job.status === 'failed' && (
+      {(job.status === 'failed' || job.status === 'refunded') && (
         <FailurePanel
           failedStep={job.failedStep}
           lastError={job.lastError}
           costCredits={job.costCredits}
-          refunded={false}
-        />
-      )}
-
-      {job.status === 'refunded' && (
-        <FailurePanel
-          failedStep={job.failedStep}
-          lastError={job.lastError}
-          costCredits={job.costCredits}
-          refunded={true}
+          refunded={job.status === 'refunded'}
         />
       )}
     </Shell>
@@ -126,6 +117,7 @@ function CompletedPanel({
   const [orient, setOrient] = useState<'landscape' | 'portrait'>('landscape');
   const currentPath = orient === 'landscape' ? landscapeUrl : portraitUrl;
   const signedUrl = useSignedUrl(currentPath);
+  const signedThumb = useSignedUrl(thumbnailUrl);
 
   return (
     <div className="mt-6">
@@ -151,7 +143,7 @@ function CompletedPanel({
           key={signedUrl}
           controls
           playsInline
-          poster={thumbnailUrl ?? undefined}
+          poster={signedThumb ?? undefined}
           className={`w-full rounded-xl bg-black ${
             orient === 'portrait' ? 'mx-auto max-w-[360px]' : ''
           }`}
@@ -263,7 +255,7 @@ function useSignedUrl(storagePath: string | null): string | null {
   const supabase = useMemo(() => createClient(), []);
   const [url, setUrl] = useState<string | null>(null);
 
-  useMemo(() => {
+  useEffect(() => {
     if (!storagePath) {
       setUrl(null);
       return;

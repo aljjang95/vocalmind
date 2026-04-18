@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { hlbCurriculum } from '@/lib/data/hlbCurriculum';
@@ -10,8 +10,12 @@ import StageCard from '@/components/journey/StageCard';
 
 export default function JourneyClient() {
   const router = useRouter();
-  const { getStageStatus, progress, getNextAvailableStage } = useJourneyStore();
+  const { getStageStatus, progress, getNextAvailableStage, syncFromSupabase } = useJourneyStore();
   const onboardingResult = useOnboardingStore((s) => s.result);
+
+  useEffect(() => {
+    syncFromSupabase();
+  }, [syncFromSupabase]);
 
   const suggestedStage = onboardingResult?.consultation.suggested_stage_id ?? null;
   const nextAvailable = getNextAvailableStage();

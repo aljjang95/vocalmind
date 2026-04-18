@@ -262,16 +262,24 @@ async function dispatchOrchestrator(jobId: string): Promise<void> {
   const secret = process.env.ORCHESTRATOR_SECRET;
   if (!secret) throw new Error('ORCHESTRATOR_SECRET 환경변수 누락');
 
-  const res = await fetch(`${backendUrl}/orchestrator/start`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Orchestrator-Secret': secret,
-    },
-    body: JSON.stringify({ job_id: jobId }),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
 
-  if (!res.ok) {
-    throw new Error(`orchestrator ${res.status}: ${await res.text()}`);
+  try {
+    const res = await fetch(`${backendUrl}/orchestrator/start`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Orchestrator-Secret': secret,
+      },
+      body: JSON.stringify({ job_id: jobId }),
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      throw new Error(`orchestrator ${res.status}: ${await res.text()}`);
+    }
+  } finally {
+    clearTimeout(timeout);
   }
 }

@@ -157,9 +157,16 @@ def transition(
 
 
 def mark_failed(job_id: str, failed_step: str, error: str) -> None:
-    """최종 실패 처리 + 크레딧 자동 환불."""
+    """최종 실패 처리 + 크레딧 자동 환불.
+
+    이중 환불 방지: 이미 failed/refunded 상태면 PATCH가 빈 배열 반환 → 조기 종료.
+    """
     url = f"{_sb_url()}/rest/v1/studio_jobs"
-    params = {"id": f"eq.{job_id}"}
+    # 이미 failed/refunded면 재환불 방지
+    params = {
+        "id": f"eq.{job_id}",
+        "status": "not.in.(failed,refunded)",
+    }
     payload = {
         "status": "failed",
         "failed_step": failed_step,
@@ -170,6 +177,7 @@ def mark_failed(job_id: str, failed_step: str, error: str) -> None:
         resp.raise_for_status()
         job_rows = resp.json()
         if not job_rows:
+            logger.info("mark_failed 스킵 — 이미 failed/refunded job_id=%s", job_id)
             return
         job = job_rows[0]
 
@@ -184,7 +192,7 @@ def mark_failed(job_id: str, failed_step: str, error: str) -> None:
         with httpx.Client(timeout=10.0) as client:
             client.patch(
                 url,
-                params={"id": f"eq.{job_id}"},
+                params={"id": f"eq.{job_id}", "status": "eq.failed"},
                 json={"status": "refunded"},
                 headers=_sb_headers(),
             )
@@ -231,3 +239,96 @@ def get_job(job_id: str) -> dict:
     if not rows:
         raise PipelineError(f"job 없음: {job_id}", code="NOT_FOUND")
     return rows[0]
+
+
+def update_scene_result(
+    job_id: str,
+    scene_id: str,
+    step: str,
+    result_url: str,
+) -> None:
+    """Runware 씬 결과 URL을 scene_plan.scenes 배열에 업데이트.
+
+    step == "scene_image_gen" → scenes[i].imageUrl 갱신
+    step == "scene_video_gen" → scenes[i].videoUrl 갱신
+
+    Supabase REST는 JSON 배열 원소 패치를 지원하지 않으므로
+    scene_plan 전체를 read → 수정 → write 패턴으로 처리.
+    """
+    job = get_job(job_id)
+    scene_plan: dict = job.get("scene_plan") or {}
+    scenes: list = scene_plan.get("scenes") or []
+
+    url_field = "imageUrl" if step == "scene_image_gen" else "videoUrl"
+    matched = False
+    for scene in scenes:
+        if isinstance(scene, dict) and scene.get("id") == scene_id:
+            scene[url_field] = result_url
+            matched = True
+            break
+
+    if not matched:
+        # scene_id 불일치 시 순서 기반 폴백 — 아직 URL 없는 첫 씬에 할당
+        logger.warning(
+            "scene_id=%s 불일치 → 순서 기반 폴백 적용 job_id=%s step=%s",
+            scene_id, job_id, step,
+        )
+        for scene in scenes:
+            if isinstance(scene, dict) and not scene.get(url_field):
+                scene[url_field] = result_url
+                matched = True
+                break
+
+    if not matched:
+        logger.error(
+            "update_scene_result: 매핑 불가 scene_id=%s job_id=%s step=%s",
+            scene_id, job_id, step,
+        )
+        return
+
+    scene_plan["scenes"] = scenes
+    rest_url = f"{_sb_url()}/rest/v1/studio_jobs"
+    with httpx.Client(timeout=10.0) as client:
+        resp = client.patch(
+            rest_url,
+            params={"id": f"eq.{job_id}"},
+            json={"scene_plan": scene_plan},
+            headers=_sb_headers(),
+        )
+    if resp.status_code >= 400:
+        raise PipelineError(
+            f"scene_plan 업데이트 실패 ({resp.status_code}): {resp.text[:200]}",
+            code="DB_ERROR",
+        )
+    logger.info(
+        "scene_result 업데이트 완료 job_id=%s scene_id=%s step=%s url=%s",
+        job_id, scene_id, step, result_url,
+    )
+
+
+def all_scenes_done(job_id: str, step: str) -> bool:
+    """모든 씬의 해당 step URL이 채워졌는지 확인.
+
+    step == "scene_image_gen" → 모든 scenes[i].imageUrl 존재 여부
+    step == "scene_video_gen" → 모든 scenes[i].videoUrl 존재 여부
+    step == "lipsync"         → 모든 scenes[i].videoUrl 존재 여부 (lipsync=lip-synced video)
+    """
+    job = get_job(job_id)
+    scene_plan: dict = job.get("scene_plan") or {}
+    scenes: list = scene_plan.get("scenes") or []
+
+    if not scenes:
+        # 씬이 없으면 완료 처리 (빈 plan → 다음 단계 진행)
+        logger.warning("all_scenes_done: scenes 비어있음 job_id=%s step=%s", job_id, step)
+        return True
+
+    url_field = "imageUrl" if step == "scene_image_gen" else "videoUrl"
+    done_count = sum(
+        1 for s in scenes
+        if isinstance(s, dict) and s.get(url_field)
+    )
+    logger.info(
+        "all_scenes_done check: %d/%d 완료 job_id=%s step=%s",
+        done_count, len(scenes), job_id, step,
+    )
+    return done_count >= len(scenes)

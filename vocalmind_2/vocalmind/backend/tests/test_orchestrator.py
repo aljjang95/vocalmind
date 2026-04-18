@@ -314,7 +314,8 @@ class TestStage3ModerationGate:
         with patch("services.studio_pipeline.get_job", return_value=fake_job), \
              patch("services.moderation.log_events") as mock_log, \
              patch("services.studio_pipeline.mark_failed") as mock_fail, \
-             patch("services.studio_pipeline.transition") as mock_t:
+             patch("services.studio_pipeline.transition") as mock_t, \
+             patch("routers.orchestrator._dispatch_step"):  # BackgroundTask 실행 차단
             mock_t.return_value = pipeline.TransitionResult(
                 job_id="j1", from_status="watermarking",
                 to_status="finalizing", applied=True,
@@ -408,3 +409,266 @@ class TestStage3ModerationGate:
         assert r.json()["next_step"] == "vocal_rvc"
         # 다른 단계에선 모더레이션 로깅 호출되지 않음
         mock_log.assert_not_called()
+
+
+class TestVocalMixingDispatch:
+    """_dispatch_step("vocal_mixing") → dispatch_mix 호출 검증."""
+
+    def test_dispatches_mix_when_both_inputs_present(self):
+        fake_job = {
+            "id": "j1", "status": "vocal_mixing", "user_id": "u1",
+            "converted_vocals_path": "studio-recording/u1/j1/vocals.wav",
+            "instrumental_path": "studio-recording/u1/j1/instrumental.wav",
+        }
+        mix_calls = []
+        with patch("services.studio_pipeline.get_job", return_value=fake_job), \
+             patch("routers.orchestrator._signed_url",
+                   side_effect=lambda p, ttl_sec=3600: f"https://signed/{p}"), \
+             patch("services.modal_dispatcher.dispatch_mix",
+                   side_effect=lambda *a, **kw: mix_calls.append(a)):
+            from routers.orchestrator import _dispatch_step
+            _dispatch_step("j1", "vocal_mixing")
+
+        assert len(mix_calls) == 1
+        job_id, vocals_url, instrumental_url, output_prefix = mix_calls[0]
+        assert job_id == "j1"
+        assert "vocals.wav" in vocals_url
+        assert "instrumental.wav" in instrumental_url
+        assert output_prefix == "u1/j1"
+
+    def test_marks_failed_when_vocals_missing(self):
+        fake_job = {
+            "id": "j1", "status": "vocal_mixing", "user_id": "u1",
+            "converted_vocals_path": "",
+            "instrumental_path": "studio-recording/u1/j1/instrumental.wav",
+        }
+        with patch("services.studio_pipeline.get_job", return_value=fake_job), \
+             patch("routers.orchestrator._signed_url", return_value=None), \
+             patch("services.studio_pipeline.mark_failed") as mock_fail:
+            from routers.orchestrator import _dispatch_step
+            _dispatch_step("j1", "vocal_mixing")
+
+        mock_fail.assert_called_once()
+        args = mock_fail.call_args[0]
+        assert args[0] == "j1"
+        assert "vocal_mixing" in args[1]
+
+    def test_marks_failed_when_instrumental_missing(self):
+        fake_job = {
+            "id": "j1", "status": "vocal_mixing", "user_id": "u1",
+            "converted_vocals_path": "studio-recording/u1/j1/vocals.wav",
+            "instrumental_path": "",
+        }
+        signed_calls = []
+
+        def fake_signed(path, ttl_sec=3600):
+            if path:
+                signed_calls.append(path)
+                return f"https://signed/{path}"
+            return None
+
+        with patch("services.studio_pipeline.get_job", return_value=fake_job), \
+             patch("routers.orchestrator._signed_url", side_effect=fake_signed), \
+             patch("services.studio_pipeline.mark_failed") as mock_fail:
+            from routers.orchestrator import _dispatch_step
+            _dispatch_step("j1", "vocal_mixing")
+
+        mock_fail.assert_called_once()
+
+
+class TestFormattingAndWatermarkingAutoTransition:
+    """formatting/watermarking은 auto-transition (Modal 콜백 없이 즉시 전이)."""
+
+    def test_formatting_transitions_to_watermarking_and_dispatches(self):
+        fake_job = {
+            "id": "j1", "status": "formatting", "user_id": "u1",
+            "landscape_url": "mv-output/u1/j1/landscape.mp4",
+            "scene_plan": {"scenes": []},
+        }
+        transitions = []
+
+        def fake_transition(job_id, expected_status, next_status, fields=None):
+            transitions.append((job_id, expected_status, next_status))
+            return pipeline.TransitionResult(
+                job_id=job_id, from_status=expected_status,
+                to_status=next_status, applied=True,
+            )
+
+        import routers.orchestrator as orch
+        recursion = []
+        orig = orch._dispatch_step
+        orch._dispatch_step = lambda j, s: recursion.append((j, s))
+        try:
+            with patch("services.studio_pipeline.get_job", return_value=fake_job), \
+                 patch("services.studio_pipeline.transition", side_effect=fake_transition):
+                orig("j1", "formatting")
+        finally:
+            orch._dispatch_step = orig
+
+        assert ("j1", "formatting", "watermarking") in transitions
+        assert ("j1", "watermarking") in recursion
+
+    def test_watermarking_clean_transitions_to_finalizing_and_dispatches(self):
+        fake_job = {
+            "id": "j1", "status": "watermarking", "user_id": "u1",
+            "cost_credits": 5, "attempt_count": 0, "max_attempts": 3,
+            "landscape_url": "https://storage/out.mp4",
+            "scene_plan": {"scenes": [{"prompt": "safe scene", "duration_sec": 30}]},
+        }
+        transitions = []
+
+        def fake_transition(job_id, expected_status, next_status, fields=None):
+            transitions.append((job_id, expected_status, next_status))
+            return pipeline.TransitionResult(
+                job_id=job_id, from_status=expected_status,
+                to_status=next_status, applied=True,
+            )
+
+        import routers.orchestrator as orch
+        recursion = []
+        orig = orch._dispatch_step
+        orch._dispatch_step = lambda j, s: recursion.append((j, s))
+        try:
+            with patch("services.studio_pipeline.get_job", return_value=fake_job), \
+                 patch("services.studio_pipeline.transition", side_effect=fake_transition), \
+                 patch("services.moderation.log_events"):
+                orig("j1", "watermarking")
+        finally:
+            orch._dispatch_step = orig
+
+        assert ("j1", "watermarking", "finalizing") in transitions
+        assert ("j1", "finalizing") in recursion
+
+    def test_watermarking_banned_marks_failed_and_stops(self):
+        fake_job = {
+            "id": "j1", "status": "watermarking", "user_id": "u1",
+            "cost_credits": 5, "attempt_count": 0, "max_attempts": 3,
+            "landscape_url": "https://storage/out.mp4",
+            "scene_plan": {"scenes": [{"prompt": "어린이 미성년 장면", "duration_sec": 30}]},
+        }
+
+        import routers.orchestrator as orch
+        recursion = []
+        orig = orch._dispatch_step
+        orch._dispatch_step = lambda j, s: recursion.append((j, s))
+        try:
+            with patch("services.studio_pipeline.get_job", return_value=fake_job), \
+                 patch("services.studio_pipeline.mark_failed") as mock_fail, \
+                 patch("services.studio_pipeline.transition") as mock_t, \
+                 patch("services.moderation.log_events"):
+                orig("j1", "watermarking")
+        finally:
+            orch._dispatch_step = orig
+
+        mock_fail.assert_called_once()
+        mock_t.assert_not_called()
+        assert recursion == []
+
+
+class TestFinalizingJob:
+    """_finalize_job: covers 레코드 insert + completed 전이."""
+
+    def _full_job(self) -> dict:
+        return {
+            "id": "j1", "status": "finalizing", "user_id": "u1",
+            "landscape_url": "mv-output/u1/j1/landscape.mp4",
+            "portrait_url": "mv-output/u1/j1/portrait.mp4",
+            "thumbnail_url": "mv-output/u1/j1/thumb.jpg",
+            "duration_sec": 45.0,
+            "title": "My Cover",
+            "cost_credits": 5, "attempt_count": 0, "max_attempts": 3,
+        }
+
+    def test_inserts_covers_and_transitions_to_completed(self):
+        fake_job = self._full_job()
+        transitions = []
+        cover_posts = []
+
+        def fake_transition(job_id, expected_status, next_status, fields=None):
+            transitions.append((job_id, expected_status, next_status))
+            return pipeline.TransitionResult(
+                job_id=job_id, from_status=expected_status,
+                to_status=next_status, applied=True,
+            )
+
+        mock_resp = MagicMock(spec=httpx.Response)
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = [{"id": "cover-1"}]
+        mock_resp.text = ""
+
+        with patch("services.studio_pipeline.get_job", return_value=fake_job), \
+             patch("services.studio_pipeline.transition", side_effect=fake_transition), \
+             patch("httpx.Client") as MockClient:
+            client_inst = MockClient.return_value.__enter__.return_value
+            client_inst.post.return_value = mock_resp
+
+            from routers.orchestrator import _finalize_job
+            _finalize_job("j1")
+
+        assert ("j1", "finalizing", "completed") in transitions
+        client_inst.post.assert_called_once()
+        call_kwargs = client_inst.post.call_args
+        body = call_kwargs[1]["json"] if "json" in call_kwargs[1] else call_kwargs.kwargs["json"]
+        assert body["user_id"] == "u1"
+        assert body["landscape_url"] == fake_job["landscape_url"]
+        assert body["duration_sec"] == 45.0
+
+    def test_marks_failed_when_landscape_url_missing(self):
+        fake_job = self._full_job()
+        fake_job["landscape_url"] = None
+
+        with patch("services.studio_pipeline.get_job", return_value=fake_job), \
+             patch("services.studio_pipeline.mark_failed") as mock_fail:
+            from routers.orchestrator import _finalize_job
+            _finalize_job("j1")
+
+        mock_fail.assert_called_once()
+        assert "j1" in mock_fail.call_args[0]
+
+    def test_marks_failed_when_covers_insert_fails(self):
+        fake_job = self._full_job()
+
+        mock_resp = MagicMock(spec=httpx.Response)
+        mock_resp.status_code = 409
+        mock_resp.text = "duplicate key"
+
+        with patch("services.studio_pipeline.get_job", return_value=fake_job), \
+             patch("services.studio_pipeline.mark_failed") as mock_fail, \
+             patch("httpx.Client") as MockClient:
+            client_inst = MockClient.return_value.__enter__.return_value
+            client_inst.post.return_value = mock_resp
+
+            from routers.orchestrator import _finalize_job
+            _finalize_job("j1")
+
+        mock_fail.assert_called_once()
+        assert "covers insert" in mock_fail.call_args[0][2]
+
+
+class TestResultMappingComposing:
+    """_result_to_fields("composing") 이 landscape+portrait+thumbnail+c2pa 모두 저장."""
+
+    def test_composing_maps_all_fields(self):
+        from routers.orchestrator import _result_to_fields
+        result = {
+            "landscape_path": "mv-output/u1/j1/landscape.mp4",
+            "portrait_path": "mv-output/u1/j1/portrait.mp4",
+            "thumbnail_path": "mv-output/u1/j1/thumb.jpg",
+            "c2pa_signed": True,
+        }
+        fields = _result_to_fields("composing", result)
+        assert fields["landscape_url"] == "mv-output/u1/j1/landscape.mp4"
+        assert fields["portrait_url"] == "mv-output/u1/j1/portrait.mp4"
+        assert fields["thumbnail_url"] == "mv-output/u1/j1/thumb.jpg"
+        assert fields["c2pa_signed"] is True
+
+    def test_composing_filters_none_values(self):
+        from routers.orchestrator import _result_to_fields
+        fields = _result_to_fields("composing", {
+            "landscape_path": "mv-output/u1/j1/landscape.mp4",
+            "portrait_path": None,
+            "thumbnail_path": None,
+        })
+        assert "landscape_url" in fields
+        assert "portrait_url" not in fields
+        assert "thumbnail_url" not in fields

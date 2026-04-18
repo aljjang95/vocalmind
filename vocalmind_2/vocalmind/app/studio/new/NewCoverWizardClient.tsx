@@ -18,6 +18,8 @@ const STYLES: { id: StylePreset; label: string; desc: string }[] = [
   { id: 'cozy', label: '포근', desc: '따뜻하고 편안한 무드' },
   { id: 'retro', label: '네온 레트로', desc: 'Blade Runner 사이버펑크' },
   { id: 'ghibli', label: '지브리', desc: '수채화 감성 애니메이션' },
+  { id: 'neon_city', label: '네온 시티', desc: '사이버펑크 야경과 네온 반사' },
+  { id: 'fantasy', label: '판타지', desc: '초현실 꿈결 같은 마법 세계' },
 ];
 
 const AVATARS: { id: AvatarMode; label: string; desc: string }[] = [
