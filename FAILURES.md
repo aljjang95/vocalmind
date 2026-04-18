@@ -50,3 +50,23 @@
   3. `STUDIO_TIERS` 주석 상단에 "backend `runware_catalog.TIERS`와 동기화 필수" 경고 박제
   4. 품질 티어 관련 PR은 배포 전 `/pricing/tier-preview`(dev 전용) 스크린샷 1장 필수 첨부
 - **수확**: "실물 확인" 원칙의 가치 입증. 마스터 지시가 없었다면 다음 세션 유저가 처음 겪었을 버그.
+
+---
+
+## 실패 #3 (의심, 다음 세션 즉시 검증 대상) — FLUX AIR 상수 이름-실체 불일치
+- **단서**: 글로벌 메모리 `reference_runware_air_catalog.md` (2026-04-18 실 호출 검증)에 따르면:
+  - `runware:100@1` = **FLUX.1 Schnell** (저렴, 빠름)
+  - `runware:101@1` = **FLUX.1 Dev** (고급, 비쌈)
+  - 크루즈자동 프로젝트 상수 이름이 과거 명명 오류로 실제와 뒤바뀜 (`FLUX_SCHNELL = "runware:101@1"` ← 실제는 Dev)
+- **현재 보컬마인드 카탈로그 상태** (`backend/infra/runware_catalog.py`):
+  - `MODEL_IMAGE_FLUX_SCHNELL = "runware:101@1"` → **실제 Dev일 가능성 높음**
+  - `MODEL_IMAGE_FLUX_DEV = "runware:100@1"` → **실제 Schnell일 가능성 높음**
+- **영향 (확인 전)**: Phase B Round 1 Draft 티어 1회 호출(예상 $0.0006 Schnell)이 실제로는 Dev 호출($0.0038)이었을 수 있음. 약 6배 단가. 아직 대시보드 미확인이라 "cost=$0.0" 리포트로는 구분 불가
+- **검증 절차 (다음 세션 1순위)**:
+  1. Runware 공식 `/docs/models` 에서 `runware:100@1` vs `runware:101@1` 문서 직접 확인
+  2. 또는 `runware:100@1`로 1장 테스트 호출(steps=4)해 응답 시간/가격 비교
+  3. 확정되면 `runware_catalog.py` 상수 값 스왑 + `test_runware_catalog::test_draft_uses_cheap_models` 의 assert 값 교정
+- **재발 방지 규칙**:
+  1. AIR 상수 추가 시 **공식 문서 URL + 1회 실 호출 검증 결과**를 주석으로 박제
+  2. 다른 프로젝트의 상수 이름을 복붙하지 말 것. 이름은 오류 가능. AIR 문자열만 신뢰
+  3. 티어별 Draft 호출 샘플을 주기적으로 Runware 대시보드에서 실 과금 대조
