@@ -59,3 +59,6 @@ supabase/.temp/
 
 # MCP config
 .mcp.json
+
+# WhyText TTS 로컬 합성 출력 (Supabase에 업로드 후 로컬은 불필요)
+scripts/why_audio_output/
