@@ -1,26 +1,25 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import type { StudioJob } from '@/types/studio';
 
-/**
- * AI 스튜디오 홈 (Phase 0 스켈레톤).
- * W3 /awesome-design 이후 본격 디자인 적용 예정.
- */
 type VoiceStatus = 'ready' | 'training' | 'collecting' | 'failed' | 'none';
 type JobFilter = 'all' | 'active' | 'completed' | 'failed';
 
 const PAGE_SIZE = 10;
+const ACTIVE_POLL_MS = 5_000;
+
+const ACTIVE_STATUSES = [
+  'pending', 'vocal_separating', 'vocal_rvc', 'vocal_mixing',
+  'scene_planning', 'scene_image_gen', 'scene_video_gen',
+  'lipsync', 'composing', 'formatting', 'watermarking', 'finalizing',
+];
 
 const FILTER_STATUSES: Record<JobFilter, string[] | null> = {
   all: null,
-  active: [
-    'pending', 'vocal_separating', 'vocal_rvc', 'vocal_mixing',
-    'scene_planning', 'scene_image_gen', 'scene_video_gen',
-    'lipsync', 'composing', 'formatting', 'watermarking', 'finalizing',
-  ],
+  active: ACTIVE_STATUSES,
   completed: ['completed'],
   failed: ['failed', 'refunded'],
 };
@@ -33,6 +32,16 @@ export default function StudioHomeClient() {
   const [filter, setFilter] = useState<JobFilter>('all');
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+  const [activeCount, setActiveCount] = useState(0);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const refreshBalance = useCallback(async () => {
+    const r = await fetch('/api/credits/balance');
+    if (r.ok) {
+      const { balance: b } = (await r.json()) as { balance: number };
+      setBalance(b);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,10 +49,11 @@ export default function StudioHomeClient() {
     async function load() {
       setIsLoading(true);
       try {
-        const [balanceRes, jobsRes, voice] = await Promise.all([
+        const [balanceRes, jobsRes, voice, activeTotal] = await Promise.all([
           fetch('/api/credits/balance'),
           loadJobs(filter, page),
           loadVoiceStatus(),
+          loadActiveCount(),
         ]);
         if (cancelled) return;
 
@@ -54,6 +64,7 @@ export default function StudioHomeClient() {
         setJobs((prev) => (page === 0 ? jobsRes : [...prev, ...jobsRes]));
         setHasMore(jobsRes.length === PAGE_SIZE);
         setVoiceStatus(voice);
+        setActiveCount(activeTotal);
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -64,6 +75,42 @@ export default function StudioHomeClient() {
       cancelled = true;
     };
   }, [filter, page]);
+
+  // 활성 작업이 있으면 5s마다 첫 페이지 + 잔액 + 카운트 자동 갱신.
+  useEffect(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+    if (activeCount === 0) return;
+
+    pollRef.current = setInterval(async () => {
+      const [firstPage, nextActiveCount] = await Promise.all([
+        loadJobs(filter, 0),
+        loadActiveCount(),
+      ]);
+      // 현재 페이지 0일 때만 리스트 갱신 (스크롤 위치 교란 방지).
+      if (page === 0) {
+        setJobs((prev) => {
+          if (prev.length <= firstPage.length) return firstPage;
+          // 추가 페이지 누적 상태 보존: 앞쪽만 교체.
+          return [...firstPage, ...prev.slice(firstPage.length)];
+        });
+      }
+      setActiveCount(nextActiveCount);
+      // 작업이 터미널로 이동하면 환불/차감 반영 위해 잔액도 재조회.
+      if (nextActiveCount !== activeCount) {
+        await refreshBalance();
+      }
+    }, ACTIVE_POLL_MS);
+
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+  }, [activeCount, filter, page, refreshBalance]);
 
   const switchFilter = (next: JobFilter) => {
     setFilter(next);
@@ -126,13 +173,18 @@ export default function StudioHomeClient() {
                 key={f}
                 type="button"
                 onClick={() => switchFilter(f)}
-                className={`rounded-md px-3 py-1 text-xs font-semibold transition-colors ${
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold transition-colors ${
                   filter === f
                     ? 'bg-white/15 text-white'
                     : 'text-white/50 hover:text-white/80'
                 }`}
               >
-                {FILTER_LABELS[f]}
+                <span>{FILTER_LABELS[f]}</span>
+                {f === 'active' && activeCount > 0 && (
+                  <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-emerald-500/30 px-1.5 text-[10px] font-bold text-emerald-200">
+                    {activeCount}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -171,32 +223,41 @@ export default function StudioHomeClient() {
 }
 
 function JobRow({ job }: { job: StudioJob }) {
-  const href = job.status === 'completed' ? `/studio/${job.id}` : undefined;
   const statusColor = statusColorMap[job.status] ?? 'text-white/60';
+  const barColor = job.status === 'failed'
+    ? 'bg-red-400'
+    : job.status === 'refunded'
+      ? 'bg-yellow-400'
+      : 'bg-emerald-400';
 
-  const content = (
-    <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3 hover:bg-white/[0.06]">
-      <div>
-        <div className="text-sm font-semibold text-white">{job.title ?? '이름 없음'}</div>
-        <div className="mt-0.5 text-xs text-white/40">
-          {new Date(job.createdAt).toLocaleString('ko-KR')}
+  return (
+    <li>
+      <Link
+        href={`/studio/${job.id}`}
+        className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40 rounded-lg"
+      >
+        <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3 hover:bg-white/[0.06]">
+          <div>
+            <div className="text-sm font-semibold text-white">{job.title ?? '이름 없음'}</div>
+            <div className="mt-0.5 text-xs text-white/40">
+              {new Date(job.createdAt).toLocaleString('ko-KR')}
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className={`text-xs font-semibold ${statusColor}`}>
+              {job.currentStepLabel ?? job.status}
+            </span>
+            <div className="h-1 w-24 overflow-hidden rounded-full bg-white/10">
+              <div
+                className={`h-full ${barColor}`}
+                style={{ width: `${job.progressPct}%` }}
+              />
+            </div>
+          </div>
         </div>
-      </div>
-      <div className="flex items-center gap-3">
-        <span className={`text-xs font-semibold ${statusColor}`}>
-          {job.currentStepLabel ?? job.status}
-        </span>
-        <div className="h-1 w-24 overflow-hidden rounded-full bg-white/10">
-          <div
-            className="h-full bg-emerald-400"
-            style={{ width: `${job.progressPct}%` }}
-          />
-        </div>
-      </div>
-    </div>
+      </Link>
+    </li>
   );
-
-  return <li>{href ? <Link href={href}>{content}</Link> : content}</li>;
 }
 
 const statusColorMap: Record<string, string> = {
@@ -255,6 +316,15 @@ async function loadVoiceStatus(): Promise<VoiceStatus> {
     .limit(1)
     .maybeSingle();
   return (data?.status as VoiceStatus) ?? 'none';
+}
+
+async function loadActiveCount(): Promise<number> {
+  const supabase = createClient();
+  const { count } = await supabase
+    .from('studio_jobs')
+    .select('id', { count: 'exact', head: true })
+    .in('status', ACTIVE_STATUSES);
+  return count ?? 0;
 }
 
 const FILTER_LABELS: Record<JobFilter, string> = {
