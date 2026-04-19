@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useAudioRecorder } from '@/lib/hooks/useAudioRecorder';
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,17 @@ export default function StepRecording() {
 
   const audioBlob = uploadedFile?.blob ?? recordedBlob;
   const fileName = uploadedFile?.name ?? null;
+
+  // 미리듣기 blob URL — 제출 전 사용자가 청취 가능. 소스 변경 시 자동 재생성.
+  const previewUrl = useMemo(
+    () => (audioBlob ? URL.createObjectURL(audioBlob) : null),
+    [audioBlob],
+  );
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   const startRecording = async () => {
     setError(null);
@@ -174,10 +185,13 @@ export default function StepRecording() {
         )}
       </div>
 
-      {audioBlob && !isRecording && (
-        <p className="text-[0.82rem] text-[var(--accent-lt)] text-center">
-          {fileName ?? `녹음 완료 (${elapsed}초)`}
-        </p>
+      {audioBlob && !isRecording && previewUrl && (
+        <div className="w-full max-w-[480px] rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
+          <p className="mb-2 text-[0.82rem] text-[var(--accent-lt)] text-center">
+            {fileName ?? `녹음 완료 (${elapsed}초)`} — 먼저 들어보고 분석을 시작하세요
+          </p>
+          <audio controls src={previewUrl} className="w-full" />
+        </div>
       )}
 
       <div className="flex items-center gap-4 w-full max-w-[320px] text-[var(--muted)] text-[0.78rem] before:content-[''] before:flex-1 before:h-px before:bg-[var(--border)] after:content-[''] after:flex-1 after:h-px after:bg-[var(--border)]">
