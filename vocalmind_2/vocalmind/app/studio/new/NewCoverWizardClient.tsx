@@ -48,10 +48,26 @@ export default function NewCoverWizardClient() {
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
+  const [balance, setBalance] = useState<number | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    fetch('/api/credits/balance')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { balance: number } | null) => {
+        if (active && d) setBalance(d.balance);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const upload = useCallback(
     async (file: File, kind: 'mr' | 'recording' | 'avatar'): Promise<string | null> => {
       setError(null);
+      setErrorCode(null);
       setIsUploading(true);
       try {
         const form = new FormData();
@@ -82,6 +98,7 @@ export default function NewCoverWizardClient() {
     }
     setIsSubmitting(true);
     setError(null);
+    setErrorCode(null);
     try {
       const res = await fetch('/api/studio/jobs', {
         method: 'POST',
@@ -99,11 +116,13 @@ export default function NewCoverWizardClient() {
         const err = (await res.json().catch(() => ({}))) as { error?: string; code?: string; hint?: string };
         if (err.code === 'INSUFFICIENT_CREDITS') {
           setError('크레딧이 부족해요. 충전 후 다시 시도하세요.');
+          setErrorCode('INSUFFICIENT_CREDITS');
         } else if (err.code === 'VOICE_IDENTITY_REQUIRED' || err.code === 'VOICE_IDENTITY_NOT_READY') {
           router.push(err.hint ?? '/studio/voice-identity');
           return;
         } else {
           setError(err.error ?? `생성 실패 (${res.status})`);
+          setErrorCode(err.code ?? null);
         }
         return;
       }
@@ -138,6 +157,7 @@ export default function NewCoverWizardClient() {
           type="button"
           onClick={() => {
             setError(null);
+            setErrorCode(null);
             const p = prevStep(step);
             if (p) setStep(p);
           }}
@@ -149,8 +169,17 @@ export default function NewCoverWizardClient() {
       )}
 
       {error && (
-        <div className="mb-4 rounded-md border border-red-400/30 bg-red-500/10 px-4 py-2 text-sm text-red-200">
-          {error}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-red-400/30 bg-red-500/10 px-4 py-2 text-sm text-red-200">
+          <span>{error}</span>
+          {errorCode === 'INSUFFICIENT_CREDITS' && (
+            <button
+              type="button"
+              onClick={() => router.push('/credits')}
+              className="rounded-md bg-red-400/20 px-3 py-1 text-xs font-semibold text-red-100 hover:bg-red-400/30"
+            >
+              크레딧 충전하기 →
+            </button>
+          )}
         </div>
       )}
 
@@ -256,20 +285,46 @@ export default function NewCoverWizardClient() {
             </dd>
           </dl>
 
+          {balance !== null && (
+            <div className="mt-3 flex items-center justify-between rounded-md bg-black/20 px-3 py-2 text-xs">
+              <span className="text-white/50">현재 잔액</span>
+              <span
+                className={
+                  balance < currentTier.credits
+                    ? 'font-semibold text-red-300'
+                    : 'font-semibold text-emerald-200'
+                }
+              >
+                {balance}크레딧
+                {balance < currentTier.credits && ' (부족)'}
+              </span>
+            </div>
+          )}
+
           <p className="mt-3 text-xs text-white/50">
             실패 시 {currentTier.credits}크레딧은 자동으로 환불됩니다. 취소는 처리 시작 전에만 가능해요.
           </p>
 
-          <button
-            type="button"
-            disabled={isSubmitting}
-            onClick={submit}
-            className="mt-5 w-full rounded-lg bg-emerald-500 px-6 py-3 text-sm font-semibold text-white hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isSubmitting
-              ? '제출 중...'
-              : `${currentTier.credits}크레딧 차감하고 생성 시작`}
-          </button>
+          {balance !== null && balance < currentTier.credits ? (
+            <button
+              type="button"
+              onClick={() => router.push('/credits')}
+              className="mt-5 w-full rounded-lg bg-emerald-500 px-6 py-3 text-sm font-semibold text-white hover:bg-emerald-400"
+            >
+              크레딧 충전하러 가기 →
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={submit}
+              className="mt-5 w-full rounded-lg bg-emerald-500 px-6 py-3 text-sm font-semibold text-white hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isSubmitting
+                ? '제출 중...'
+                : `${currentTier.credits}크레딧 차감하고 생성 시작`}
+            </button>
+          )}
         </div>
       )}
     </main>
