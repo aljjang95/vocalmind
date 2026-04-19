@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import type { StudioJob } from '@/types/studio';
+import { STUDIO_TIERS } from '@/types/studio';
 
 type VoiceStatus = 'ready' | 'training' | 'collecting' | 'failed' | 'none';
 type JobFilter = 'all' | 'active' | 'completed' | 'failed';
@@ -157,7 +158,9 @@ export default function StudioHomeClient() {
           href={voiceStatus === 'ready' ? '/studio/new' : '/studio/voice-identity'}
           className="mt-5 inline-block rounded-lg bg-emerald-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-emerald-400"
         >
-          {voiceStatus === 'ready' ? '커버 만들기 (5크레딧)' : '먼저 내 음색 등록하기'}
+          {voiceStatus === 'ready'
+            ? `커버 만들기 (${STUDIO_TIERS.draft.credits}크레딧부터)`
+            : '먼저 내 음색 등록하기'}
         </Link>
       </section>
 

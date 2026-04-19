@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { loadPaymentWidget, PaymentWidgetInstance } from '@tosspayments/payment-widget-sdk';
 import { CREDIT_PACKS, type CreditPack } from '@/types/credits';
+import { STUDIO_TIERS } from '@/types/studio';
 
 const CLIENT_KEY = process.env.NEXT_PUBLIC_TOSSPAYMENTS_CLIENT_KEY!;
 
@@ -85,7 +86,7 @@ export default function CreditsClient({ userEmail, userName, initialBalance }: P
         <p className="mt-1 text-sm text-white/60">
           현재 잔액{' '}
           <span className="font-semibold text-white">{initialBalance}크레딧</span>
-          {' '}· 커버 1편 = 5크레딧
+          {' '}· 커버 1편 = {STUDIO_TIERS.draft.credits}~{STUDIO_TIERS.studio.credits}크레딧 (품질에 따라)
         </p>
       </header>
 

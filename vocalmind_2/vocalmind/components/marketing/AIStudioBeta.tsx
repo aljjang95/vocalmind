@@ -22,7 +22,7 @@ const STEPS = [
   {
     num: '03',
     title: 'AI가 뮤직비디오로',
-    desc: '시네마틱·포근·도시야경 4가지 스타일 중 선택 → 15분 내 완성 영상 다운로드.',
+    desc: '시네마틱·포근·네온 레트로·지브리·네온 시티·판타지 6가지 스타일 중 선택 → 15분 내 완성 영상 다운로드.',
     img: 'https://images.unsplash.com/photo-1518834107812-67b0b7c58434?w=600&q=80',
     imgAlt: '영상 편집 화면',
   },
@@ -118,7 +118,7 @@ export default function AIStudioBeta() {
                 AI 스튜디오 체험 →
               </Link>
               <p className="text-[11px] text-white/40">
-                신규 가입 시 5크레딧 지급
+                품질 티어 3종 · 실패 시 자동 환불
               </p>
             </div>
           </div>
