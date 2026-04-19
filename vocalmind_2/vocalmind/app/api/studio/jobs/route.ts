@@ -26,7 +26,7 @@ const VALID_TIERS: readonly QualityTier[] = ['draft', 'pro', 'studio'];
  *
  * 신규 MV 생성 작업을 시작한다.
  * 1) 유저 인증 + 레이트리밋
- * 2) consume_credits RPC로 5크레딧 원자적 차감
+ * 2) consume_credits RPC로 선택 티어 크레딧 원자적 차감 (draft 3 / pro 15 / studio 40)
  * 3) studio_jobs(pending) insert (service role — RLS 우회로 ledger_entry_id 연결)
  * 4) FastAPI orchestrator /orchestrator/start 호출 (X-Orchestrator-Secret)
  * 5) {jobId} 즉시 반환
