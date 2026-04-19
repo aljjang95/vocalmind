@@ -1,16 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { requireAuth, isAuthResult } from '@/lib/infra/auth';
-
-/**
- * 크레딧 충전 팩 — 금액(KRW) → 크레딧 개수
- * Phase 0: 1크레딧 = 1,000원 기준, 큰 팩일수록 할인.
- */
-const CREDIT_PACKS: Record<number, { credits: number; label: string }> = {
-  50000: { credits: 50, label: '50크레딧 팩' },
-  140000: { credits: 150, label: '150크레딧 팩 (10% 할인)' },
-  450000: { credits: 500, label: '500크레딧 팩 (10% 할인)' },
-};
+import { findCreditPack } from '@/types/credits';
 
 interface ConfirmBody {
   paymentKey: string;
@@ -35,7 +26,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '필수 파라미터 누락', code: 'MISSING_PARAMS' }, { status: 400 });
   }
 
-  const pack = CREDIT_PACKS[amount];
+  const pack = findCreditPack(amount);
   if (!pack) {
     return NextResponse.json(
       { error: '알 수 없는 크레딧 팩 금액', code: 'UNKNOWN_PACK' },

@@ -20,3 +20,4 @@ export * from './audition';
 export * from './vocal-dna';
 export * from './rhythm';
 export * from './studio';
+export * from './credits';

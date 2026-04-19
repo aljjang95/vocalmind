@@ -3,16 +3,9 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { loadPaymentWidget, PaymentWidgetInstance } from '@tosspayments/payment-widget-sdk';
+import { CREDIT_PACKS, type CreditPack } from '@/types/credits';
 
 const CLIENT_KEY = process.env.NEXT_PUBLIC_TOSSPAYMENTS_CLIENT_KEY!;
-
-const PACKS = [
-  { amount: 50000, credits: 50, badge: null, desc: '가볍게 시작 (커버 10편)' },
-  { amount: 140000, credits: 150, badge: '인기', desc: '한 달 꾸준히 (커버 30편)' },
-  { amount: 450000, credits: 500, badge: '최대 절약', desc: '본격 크리에이터 (커버 100편)' },
-] as const;
-
-type Pack = (typeof PACKS)[number];
 
 interface Props {
   userEmail: string;
@@ -31,12 +24,12 @@ function clearWidgetContainer(id: string) {
 }
 
 export default function CreditsClient({ userEmail, userName, initialBalance }: Props) {
-  const [selected, setSelected] = useState<Pack | null>(null);
+  const [selected, setSelected] = useState<CreditPack | null>(null);
   const [widget, setWidget] = useState<PaymentWidgetInstance | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPaying, setIsPaying] = useState(false);
 
-  const handleSelect = async (pack: Pack) => {
+  const handleSelect = async (pack: CreditPack) => {
     setSelected(pack);
     setError(null);
 
@@ -97,7 +90,7 @@ export default function CreditsClient({ userEmail, userName, initialBalance }: P
       </header>
 
       <section className="mb-8 grid grid-cols-1 gap-3 md:grid-cols-3">
-        {PACKS.map((pack) => (
+        {CREDIT_PACKS.map((pack) => (
           <button
             key={pack.amount}
             type="button"
