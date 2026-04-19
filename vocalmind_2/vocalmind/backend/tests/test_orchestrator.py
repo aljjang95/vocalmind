@@ -672,3 +672,115 @@ class TestResultMappingComposing:
         assert "landscape_url" in fields
         assert "portrait_url" not in fields
         assert "thumbnail_url" not in fields
+
+
+class TestCancelJob:
+    """유저 취소 — pending~scene_planning만 허용, mark_failed + 환불."""
+
+    def test_cancellable_statuses_covers_pre_gpu_stages(self):
+        assert "pending" in pipeline.CANCELLABLE_STATUSES
+        assert "vocal_separating" in pipeline.CANCELLABLE_STATUSES
+        assert "vocal_rvc" in pipeline.CANCELLABLE_STATUSES
+        assert "vocal_mixing" in pipeline.CANCELLABLE_STATUSES
+        assert "scene_planning" in pipeline.CANCELLABLE_STATUSES
+        # scene_image_gen 이후는 외부 GPU 비용 발생 → 취소 금지
+        assert "scene_image_gen" not in pipeline.CANCELLABLE_STATUSES
+        assert "scene_video_gen" not in pipeline.CANCELLABLE_STATUSES
+        assert "lipsync" not in pipeline.CANCELLABLE_STATUSES
+
+    def test_cancel_pending_job_marks_failed_and_refunds(self):
+        job = {
+            "id": "j1", "status": "pending", "user_id": "u1",
+            "cost_credits": 5,
+        }
+        with patch("services.studio_pipeline.get_job", return_value=job), \
+             patch("services.studio_pipeline.mark_failed") as mock_fail:
+            result = pipeline.cancel_job("j1", "u1")
+
+        mock_fail.assert_called_once()
+        args, _ = mock_fail.call_args
+        assert args[0] == "j1"
+        # failed_step은 kwargs로 들어옴
+        assert mock_fail.call_args.kwargs.get("failed_step") == "cancelled_by_user"
+        assert result["previous_status"] == "pending"
+        assert result["status"] == "refunded"
+
+    def test_cancel_wrong_user_raises_forbidden(self):
+        job = {"id": "j1", "status": "pending", "user_id": "u1", "cost_credits": 5}
+        with patch("services.studio_pipeline.get_job", return_value=job):
+            with pytest.raises(pipeline.PipelineError) as exc:
+                pipeline.cancel_job("j1", "someone-else")
+        assert exc.value.code == "FORBIDDEN"
+
+    def test_cancel_post_gpu_stage_raises_not_cancellable(self):
+        job = {"id": "j1", "status": "scene_image_gen", "user_id": "u1", "cost_credits": 5}
+        with patch("services.studio_pipeline.get_job", return_value=job):
+            with pytest.raises(pipeline.NotCancellableError) as exc:
+                pipeline.cancel_job("j1", "u1")
+        assert exc.value.current_status == "scene_image_gen"
+
+    def test_cancel_terminal_status_raises_not_cancellable(self):
+        """이미 completed/failed/refunded 상태는 재취소 불가."""
+        for terminal in ("completed", "failed", "refunded"):
+            job = {"id": "j1", "status": terminal, "user_id": "u1", "cost_credits": 5}
+            with patch("services.studio_pipeline.get_job", return_value=job):
+                with pytest.raises(pipeline.NotCancellableError):
+                    pipeline.cancel_job("j1", "u1")
+
+
+class TestOrchestratorCancelEndpoint:
+    """POST /orchestrator/cancel 엔드포인트."""
+
+    def test_rejects_wrong_secret(self):
+        client = TestClient(app)
+        r = client.post(
+            "/orchestrator/cancel",
+            json={"job_id": "j1", "user_id": "u1"},
+            headers={"X-Orchestrator-Secret": "wrong"},
+        )
+        assert r.status_code == 401
+
+    def test_success_returns_refunded_status(self):
+        with patch("services.studio_pipeline.cancel_job") as mock_cancel:
+            mock_cancel.return_value = {
+                "job_id": "j1", "previous_status": "vocal_separating", "status": "refunded",
+            }
+            client = TestClient(app)
+            r = client.post(
+                "/orchestrator/cancel",
+                json={"job_id": "j1", "user_id": "u1"},
+                headers={"X-Orchestrator-Secret": "shhh"},
+            )
+        assert r.status_code == 200
+        body = r.json()
+        assert body["ok"] is True
+        assert body["status"] == "refunded"
+        assert body["previous_status"] == "vocal_separating"
+
+    def test_not_cancellable_returns_409(self):
+        with patch(
+            "services.studio_pipeline.cancel_job",
+            side_effect=pipeline.NotCancellableError("scene_image_gen"),
+        ):
+            client = TestClient(app)
+            r = client.post(
+                "/orchestrator/cancel",
+                json={"job_id": "j1", "user_id": "u1"},
+                headers={"X-Orchestrator-Secret": "shhh"},
+            )
+        assert r.status_code == 409
+        assert r.json()["detail"]["code"] == "NOT_CANCELLABLE"
+
+    def test_wrong_owner_returns_403(self):
+        with patch(
+            "services.studio_pipeline.cancel_job",
+            side_effect=pipeline.PipelineError("본인 작업이 아닙니다", code="FORBIDDEN"),
+        ):
+            client = TestClient(app)
+            r = client.post(
+                "/orchestrator/cancel",
+                json={"job_id": "j1", "user_id": "bad"},
+                headers={"X-Orchestrator-Secret": "shhh"},
+            )
+        assert r.status_code == 403
+        assert r.json()["detail"]["code"] == "FORBIDDEN"

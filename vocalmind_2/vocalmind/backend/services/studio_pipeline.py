@@ -200,6 +200,39 @@ def mark_failed(job_id: str, failed_step: str, error: str) -> None:
         logger.exception("환불 실패 job_id=%s: %s", job_id, e)
 
 
+# 유저가 취소할 수 있는 단계. 이후 단계는 외부 GPU 비용이 이미 지출됨 → 환불 거부.
+CANCELLABLE_STATUSES: frozenset[str] = frozenset({
+    "pending", "vocal_separating", "vocal_rvc", "vocal_mixing", "scene_planning",
+})
+
+
+class NotCancellableError(PipelineError):
+    """취소 불가 상태 (이미 종료, 또는 비용 지출 단계 진입)."""
+    def __init__(self, current_status: str):
+        super().__init__(
+            f"현재 단계({current_status})에서는 취소할 수 없어요",
+            code="NOT_CANCELLABLE",
+        )
+        self.current_status = current_status
+
+
+def cancel_job(job_id: str, user_id: str) -> dict:
+    """유저 요청 취소 → mark_failed + 환불 (mark_failed 내부 환불 로직 재사용).
+
+    소유권 확인 + cancellable 단계 확인 후 `failed_step='cancelled_by_user'`로
+    실패 처리. 이후 Modal/Runware 콜백이 늦게 와도 낙관적 잠금이 걸러냄.
+    """
+    job = get_job(job_id)
+    if job["user_id"] != user_id:
+        raise PipelineError("본인 작업이 아닙니다", code="FORBIDDEN")
+    current = job["status"]
+    if current not in CANCELLABLE_STATUSES:
+        raise NotCancellableError(current)
+
+    mark_failed(job_id, failed_step="cancelled_by_user", error="유저 취소")
+    return {"job_id": job_id, "previous_status": current, "status": "refunded"}
+
+
 def increment_attempt(job_id: str) -> int:
     """attempt_count += 1 후 현재 값 반환. max_attempts 초과 판단용."""
     # Supabase RPC 없이 간단히 select → update

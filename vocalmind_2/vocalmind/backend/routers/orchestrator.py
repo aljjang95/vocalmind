@@ -70,6 +70,18 @@ class CallbackResponse(BaseModel):
     next_step: str | None = None
 
 
+class CancelJobRequest(BaseModel):
+    job_id: str
+    user_id: str  # BFF가 세션 검증 후 대리 전달. 본인 확인은 파이프라인 내부 소유권 체크.
+
+
+class CancelJobResponse(BaseModel):
+    ok: bool
+    job_id: str
+    previous_status: str
+    status: str  # "refunded"
+
+
 # ── 엔드포인트 ─────────────────────────────────────────────────────
 
 @router.post("/start", response_model=StartJobResponse)
@@ -263,6 +275,33 @@ async def runware_callback(
         )
 
     return CallbackResponse(accepted=True, next_step=req.step)
+
+
+@router.post("/cancel", response_model=CancelJobResponse)
+async def cancel_job(
+    req: CancelJobRequest,
+    x_orchestrator_secret: str | None = Header(default=None),
+) -> CancelJobResponse:
+    """유저 요청 취소 — cancellable 단계에서만 허용. mark_failed + 환불."""
+    _verify_secret(x_orchestrator_secret)
+
+    try:
+        result = pipeline.cancel_job(req.job_id, req.user_id)
+    except pipeline.NotCancellableError as e:
+        raise HTTPException(
+            status_code=409,
+            detail={"error": str(e), "code": e.code, "current_status": e.current_status},
+        )
+    except pipeline.PipelineError as e:
+        status = 404 if e.code == "NOT_FOUND" else 403 if e.code == "FORBIDDEN" else 500
+        raise HTTPException(status_code=status, detail={"error": str(e), "code": e.code})
+
+    return CancelJobResponse(
+        ok=True,
+        job_id=result["job_id"],
+        previous_status=result["previous_status"],
+        status=result["status"],
+    )
 
 
 # ── 내부 헬퍼 (실제 Modal/Runware spawn은 W2 후속에서) ─────────────

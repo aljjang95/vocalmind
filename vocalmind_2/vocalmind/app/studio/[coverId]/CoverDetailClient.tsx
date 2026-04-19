@@ -10,6 +10,9 @@ interface Props {
 }
 
 const TERMINAL_STATUSES = new Set(['completed', 'failed', 'refunded']);
+const CANCELLABLE_STATUSES = new Set([
+  'pending', 'vocal_separating', 'vocal_rvc', 'vocal_mixing', 'scene_planning',
+]);
 
 export default function CoverDetailClient({ jobId }: Props) {
   const { job, isLoading, error } = useStudioJob(jobId);
@@ -39,11 +42,16 @@ export default function CoverDetailClient({ jobId }: Props) {
       </p>
 
       {!isTerminal && (
-        <ProgressPanel
-          progressPct={job.progressPct}
-          label={job.currentStepLabel}
-          status={job.status}
-        />
+        <>
+          <ProgressPanel
+            progressPct={job.progressPct}
+            label={job.currentStepLabel}
+            status={job.status}
+          />
+          {CANCELLABLE_STATUSES.has(job.status) && (
+            <CancelSection jobId={jobId} costCredits={job.costCredits} />
+          )}
+        </>
       )}
 
       {job.status === 'completed' && (
@@ -247,6 +255,47 @@ function FailurePanel({
           환불 처리가 30분 이상 늦어지면 고객센터로 문의해주세요.
         </p>
       )}
+    </div>
+  );
+}
+
+function CancelSection({ jobId, costCredits }: { jobId: string; costCredits: number }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function onCancel() {
+    if (!window.confirm(`정말 취소할까요? ${costCredits}크레딧이 환불돼요.`)) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const res = await fetch(`/api/studio/jobs/${jobId}/cancel`, { method: 'POST' });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setErr(body?.error ?? '취소 실패');
+        setBusy(false);
+        return;
+      }
+      window.location.reload();
+    } catch {
+      setErr('네트워크 오류');
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-4 flex flex-col items-start gap-2">
+      <button
+        type="button"
+        onClick={onCancel}
+        disabled={busy}
+        className="rounded-md border border-white/15 bg-white/[0.04] px-3 py-1.5 text-xs text-white/70 hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-200 disabled:opacity-50"
+      >
+        {busy ? '취소 중...' : '작업 취소 + 크레딧 환불'}
+      </button>
+      {err && <p className="text-xs text-red-300">{err}</p>}
+      <p className="text-[11px] text-white/40">
+        이미지/영상 생성이 시작된 이후에는 취소할 수 없어요.
+      </p>
     </div>
   );
 }
