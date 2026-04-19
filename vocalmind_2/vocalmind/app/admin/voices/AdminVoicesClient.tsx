@@ -109,6 +109,30 @@ function VoiceRow({ item, onChanged }: { item: VoiceIdentity; onChanged: () => v
   const [mos, setMos] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [preloadedUrls, setPreloadedUrls] = useState<Record<number, string>>({});
+  const [preloadBusy, setPreloadBusy] = useState(false);
+
+  async function preloadAllClips() {
+    if (preloadBusy) return;
+    setPreloadBusy(true);
+    try {
+      const entries = await Promise.all(
+        item.source_clips.map(async (c) => {
+          const r = await fetch(
+            `/api/admin/voices/clip-url?path=${encodeURIComponent(c.storage_path)}`,
+          );
+          const data = await r.json();
+          return [c.sentence_index, data.url as string] as const;
+        }),
+      );
+      const map: Record<number, string> = {};
+      for (const [k, v] of entries) map[k] = v;
+      setPreloadedUrls(map);
+      setShowClips(true);
+    } finally {
+      setPreloadBusy(false);
+    }
+  }
 
   async function approve() {
     if (!modelPath.trim()) {
@@ -175,18 +199,32 @@ function VoiceRow({ item, onChanged }: { item: VoiceIdentity; onChanged: () => v
         </span>
       </div>
 
-      <button
-        type="button"
-        onClick={() => setShowClips((v) => !v)}
-        className="mb-3 text-xs text-emerald-300 hover:underline"
-      >
-        {showClips ? '▼' : '▶'} 녹음 클립 듣기 ({item.source_clips.length}개)
-      </button>
+      <div className="mb-3 flex flex-wrap gap-3 text-xs">
+        <button
+          type="button"
+          onClick={() => setShowClips((v) => !v)}
+          className="text-emerald-300 hover:underline"
+        >
+          {showClips ? '▼' : '▶'} 녹음 클립 듣기 ({item.source_clips.length}개)
+        </button>
+        <button
+          type="button"
+          onClick={preloadAllClips}
+          disabled={preloadBusy}
+          className="rounded-md border border-emerald-400/30 px-2 py-0.5 text-emerald-200 hover:bg-emerald-500/10 disabled:opacity-50"
+        >
+          {preloadBusy ? '로드 중...' : '🎧 모두 미리 재생'}
+        </button>
+      </div>
 
       {showClips && (
         <div className="mb-4 grid grid-cols-1 gap-2 md:grid-cols-2">
           {item.source_clips.map((c) => (
-            <ClipRow key={c.sentence_index} clip={c} />
+            <ClipRow
+              key={c.sentence_index}
+              clip={c}
+              preloadedUrl={preloadedUrls[c.sentence_index] ?? null}
+            />
           ))}
         </div>
       )}
@@ -262,9 +300,13 @@ function VoiceRow({ item, onChanged }: { item: VoiceIdentity; onChanged: () => v
   );
 }
 
-function ClipRow({ clip }: { clip: SourceClip }) {
-  const [url, setUrl] = useState<string | null>(null);
+function ClipRow({ clip, preloadedUrl }: { clip: SourceClip; preloadedUrl: string | null }) {
+  const [url, setUrl] = useState<string | null>(preloadedUrl);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (preloadedUrl) setUrl(preloadedUrl);
+  }, [preloadedUrl]);
 
   async function load() {
     setLoading(true);
