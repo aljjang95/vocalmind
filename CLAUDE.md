@@ -81,7 +81,8 @@ vocalmind_2/vocalmind/
 │   │   ├── [coverId]/         # 진행률 Realtime + 완성 MP4 다운로드 + C2PA 뱃지
 │   │   └── voice-identity/    # 10문장 녹음 → voice_identities.status=training
 │   ├── admin/                 # [Phase 0] 관리자 (TEACHER_EMAIL 게이트)
-│   │   └── voices/            # voice_identity 승인 (clip 재생 + RVC 모델 경로 입력)
+│   │   ├── voices/            # voice_identity 승인 (clip 재생 + RVC 모델 경로 입력)
+│   │   └── studio/            # stuck job 조회 + 강제 실패(환불) — Modal/Runware 콜백 유실 복구
 │   ├── credits/               # [Phase 0] 선불 크레딧 충전 (토스페이먼츠 위젯)
 │   │   ├── page.tsx           # 3팩 선택 (50/150/500 크레딧)
 │   │   ├── success/           # Toss 승인 → /api/credits/topup/confirm → 지급 완료
@@ -288,6 +289,7 @@ Phase 0 AI 스튜디오 (선불 크레딧 단건 결제):
   /api/studio/jobs → POST: consume_credits → studio_jobs(pending) insert → orchestrator/start 호출 → auto-refund on fail
   /api/voice-identity/train → POST: 10문장 + source_clips → voice_identities(training)
   /api/admin/voices → GET(list) / approve(POST → ready or failed) / clip-url(GET signed URL). TEACHER_EMAIL 게이트.
+  /api/admin/studio → stuck-jobs(GET, minutes 1~1440) / force-fail(POST, reason 필수). orchestrator admin 엔드포인트 프록시.
 
 Backend Orchestrator (X-Orchestrator-Secret 인증):
   POST /orchestrator/start {job_id} → 상태머신 첫 단계(vocal_separating) 진입
@@ -432,7 +434,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=       # Phase 0 필수 — studio_jobs service role ops + grant_credits RPC
 ANTHROPIC_API_KEY=
 VOCAL_BACKEND_URL=http://localhost:8001
-TEACHER_EMAIL=                   # 선생님/관리자 게이트 (/teacher + /admin/voices)
+TEACHER_EMAIL=                   # 선생님/관리자 게이트 (/teacher + /admin/voices + /admin/studio)
 ORCHESTRATOR_SECRET=             # Phase 0 — BFF ↔ FastAPI orchestrator 공유 시크릿 (64 hex)
 NEXT_PUBLIC_TOSSPAYMENTS_CLIENT_KEY=
 TOSSPAYMENTS_SECRET_KEY=         # Phase 0 크레딧 충전 승인용
