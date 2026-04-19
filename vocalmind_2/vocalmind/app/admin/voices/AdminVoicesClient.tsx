@@ -59,9 +59,15 @@ export default function AdminVoicesClient() {
             유저가 등록한 10문장 녹음을 듣고 RVC 학습 → 모델 업로드 → 승인 처리.
           </p>
         </div>
-        <Link href="/studio" className="text-xs text-white/50 hover:text-white/80">
-          ← 스튜디오
-        </Link>
+        <div className="flex items-center gap-2 text-xs">
+          <Link href="/admin/studio" className="text-white/50 hover:text-white/80">
+            장애 복구
+          </Link>
+          <span className="text-white/20">·</span>
+          <Link href="/studio" className="text-white/50 hover:text-white/80">
+            ← 스튜디오
+          </Link>
+        </div>
       </header>
 
       <div className="mb-5 flex gap-2">

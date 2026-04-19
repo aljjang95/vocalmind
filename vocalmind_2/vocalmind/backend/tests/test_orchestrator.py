@@ -784,3 +784,144 @@ class TestOrchestratorCancelEndpoint:
             )
         assert r.status_code == 403
         assert r.json()["detail"]["code"] == "FORBIDDEN"
+
+
+class TestForceFailJob:
+    """관리자 강제 실패 처리 — stuck job 복구용."""
+
+    def test_force_fail_calls_mark_failed_with_admin_prefix(self):
+        job = {"id": "j1", "status": "scene_video_gen", "user_id": "u1", "cost_credits": 15}
+        with patch("services.studio_pipeline.get_job", return_value=job), \
+             patch("services.studio_pipeline.mark_failed") as mock_fail:
+            result = pipeline.force_fail_job("j1", "Modal 콜백 유실")
+
+        mock_fail.assert_called_once()
+        # failed_step에 원래 status가 포함돼야 감사 추적 가능
+        assert "force_failed_by_admin" in mock_fail.call_args.kwargs["failed_step"]
+        assert "scene_video_gen" in mock_fail.call_args.kwargs["failed_step"]
+        # error에 관리자 사유 포함
+        assert "Modal 콜백 유실" in mock_fail.call_args.kwargs["error"]
+        assert result["previous_status"] == "scene_video_gen"
+        assert result["status"] == "refunded"
+
+    def test_force_fail_on_terminal_job_raises_already_terminal(self):
+        for terminal in ("completed", "failed", "refunded"):
+            job = {"id": "j1", "status": terminal, "user_id": "u1", "cost_credits": 5}
+            with patch("services.studio_pipeline.get_job", return_value=job):
+                with pytest.raises(pipeline.PipelineError) as exc:
+                    pipeline.force_fail_job("j1", "재처리")
+            assert exc.value.code == "ALREADY_TERMINAL"
+
+
+class TestListStuckJobs:
+    """N분 이상 updated_at 변동 없는 active job 조회."""
+
+    def test_active_statuses_exclude_terminals(self):
+        assert "pending" in pipeline.ACTIVE_STATUSES
+        assert "scene_image_gen" in pipeline.ACTIVE_STATUSES
+        assert "completed" not in pipeline.ACTIVE_STATUSES
+        assert "failed" not in pipeline.ACTIVE_STATUSES
+        assert "refunded" not in pipeline.ACTIVE_STATUSES
+
+    def test_returns_rows_from_supabase(self):
+        with patch("services.studio_pipeline.httpx.Client") as MockClient:
+            client = MockClient.return_value.__enter__.return_value
+            client.get.return_value = _mock_resp(200, [
+                {"id": "j1", "user_id": "u1", "status": "scene_image_gen",
+                 "cost_credits": 15, "attempt_count": 1, "last_error": None,
+                 "created_at": "2026-04-19T00:00:00Z", "updated_at": "2026-04-19T01:00:00Z"},
+            ])
+            rows = pipeline.list_stuck_jobs(older_than_minutes=30)
+            assert len(rows) == 1
+            assert rows[0]["id"] == "j1"
+            # 쿼리에 updated_at lt 조건 포함
+            call_kwargs = client.get.call_args.kwargs
+            assert "lt." in call_kwargs["params"]["updated_at"]
+
+
+class TestOrchestratorAdminEndpoints:
+    """관리자 엔드포인트 — X-Orchestrator-Secret 인증 + 기능."""
+
+    def test_stuck_jobs_rejects_wrong_secret(self):
+        client = TestClient(app)
+        r = client.get(
+            "/orchestrator/admin/stuck-jobs",
+            headers={"X-Orchestrator-Secret": "wrong"},
+        )
+        assert r.status_code == 401
+
+    def test_stuck_jobs_returns_list(self):
+        with patch("services.studio_pipeline.list_stuck_jobs") as mock_list:
+            mock_list.return_value = [
+                {"id": "j1", "user_id": "u1", "status": "scene_image_gen",
+                 "cost_credits": 15, "attempt_count": 1, "last_error": None,
+                 "created_at": "2026-04-19T00:00:00Z", "updated_at": "2026-04-19T01:00:00Z"},
+            ]
+            client = TestClient(app)
+            r = client.get(
+                "/orchestrator/admin/stuck-jobs?older_than_minutes=60",
+                headers={"X-Orchestrator-Secret": "shhh"},
+            )
+        assert r.status_code == 200
+        body = r.json()
+        assert body["count"] == 1
+        assert body["older_than_minutes"] == 60
+        mock_list.assert_called_once_with(60)
+
+    def test_stuck_jobs_clamps_range(self):
+        """older_than_minutes는 [1, 1440] 범위로 clamp."""
+        with patch("services.studio_pipeline.list_stuck_jobs", return_value=[]) as mock_list:
+            client = TestClient(app)
+            r = client.get(
+                "/orchestrator/admin/stuck-jobs?older_than_minutes=999999",
+                headers={"X-Orchestrator-Secret": "shhh"},
+            )
+            assert r.status_code == 200
+            mock_list.assert_called_once_with(1440)
+
+    def test_force_fail_rejects_wrong_secret(self):
+        client = TestClient(app)
+        r = client.post(
+            "/orchestrator/admin/force-fail",
+            json={"job_id": "j1", "reason": "test"},
+            headers={"X-Orchestrator-Secret": "wrong"},
+        )
+        assert r.status_code == 401
+
+    def test_force_fail_requires_reason(self):
+        client = TestClient(app)
+        r = client.post(
+            "/orchestrator/admin/force-fail",
+            json={"job_id": "j1", "reason": "   "},
+            headers={"X-Orchestrator-Secret": "shhh"},
+        )
+        assert r.status_code == 400
+        assert r.json()["detail"]["code"] == "MISSING_REASON"
+
+    def test_force_fail_success(self):
+        with patch("services.studio_pipeline.force_fail_job") as mock_force:
+            mock_force.return_value = {
+                "job_id": "j1", "previous_status": "scene_video_gen", "status": "refunded",
+            }
+            client = TestClient(app)
+            r = client.post(
+                "/orchestrator/admin/force-fail",
+                json={"job_id": "j1", "reason": "Modal 콜백 유실"},
+                headers={"X-Orchestrator-Secret": "shhh"},
+            )
+        assert r.status_code == 200
+        assert r.json()["status"] == "refunded"
+
+    def test_force_fail_already_terminal_returns_409(self):
+        with patch(
+            "services.studio_pipeline.force_fail_job",
+            side_effect=pipeline.PipelineError("이미 종료됨", code="ALREADY_TERMINAL"),
+        ):
+            client = TestClient(app)
+            r = client.post(
+                "/orchestrator/admin/force-fail",
+                json={"job_id": "j1", "reason": "test"},
+                headers={"X-Orchestrator-Secret": "shhh"},
+            )
+        assert r.status_code == 409
+        assert r.json()["detail"]["code"] == "ALREADY_TERMINAL"

@@ -82,6 +82,35 @@ class CancelJobResponse(BaseModel):
     status: str  # "refunded"
 
 
+class StuckJobRow(BaseModel):
+    id: str
+    user_id: str
+    status: str
+    cost_credits: int
+    attempt_count: int
+    last_error: str | None = None
+    created_at: str
+    updated_at: str
+
+
+class StuckJobsResponse(BaseModel):
+    older_than_minutes: int
+    count: int
+    items: list[StuckJobRow]
+
+
+class ForceFailRequest(BaseModel):
+    job_id: str
+    reason: str
+
+
+class ForceFailResponse(BaseModel):
+    ok: bool
+    job_id: str
+    previous_status: str
+    status: str  # "refunded"
+
+
 # ── 엔드포인트 ─────────────────────────────────────────────────────
 
 @router.post("/start", response_model=StartJobResponse)
@@ -297,6 +326,64 @@ async def cancel_job(
         raise HTTPException(status_code=status, detail={"error": str(e), "code": e.code})
 
     return CancelJobResponse(
+        ok=True,
+        job_id=result["job_id"],
+        previous_status=result["previous_status"],
+        status=result["status"],
+    )
+
+
+@router.get("/admin/stuck-jobs", response_model=StuckJobsResponse)
+async def admin_stuck_jobs(
+    older_than_minutes: int = 30,
+    x_orchestrator_secret: str | None = Header(default=None),
+) -> StuckJobsResponse:
+    """관리자 — N분 이상 updated_at 갱신 없는 active job 조회.
+
+    BFF에서 TEACHER_EMAIL 게이트 통과 후 호출. 외부 콜백 유실로 멈춘
+    작업을 찾아 force-fail로 복구하기 위한 리스트.
+    """
+    _verify_secret(x_orchestrator_secret)
+
+    minutes = max(1, min(older_than_minutes, 24 * 60))
+    try:
+        rows = pipeline.list_stuck_jobs(minutes)
+    except pipeline.PipelineError as e:
+        raise HTTPException(status_code=500, detail={"error": str(e), "code": e.code})
+
+    return StuckJobsResponse(
+        older_than_minutes=minutes,
+        count=len(rows),
+        items=[StuckJobRow(**r) for r in rows],
+    )
+
+
+@router.post("/admin/force-fail", response_model=ForceFailResponse)
+async def admin_force_fail(
+    req: ForceFailRequest,
+    x_orchestrator_secret: str | None = Header(default=None),
+) -> ForceFailResponse:
+    """관리자 — 멈춘 job을 강제 failed 처리 + 크레딧 환불."""
+    _verify_secret(x_orchestrator_secret)
+
+    reason = (req.reason or "").strip()
+    if not reason:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "reason 필수", "code": "MISSING_REASON"},
+        )
+
+    try:
+        result = pipeline.force_fail_job(req.job_id, reason)
+    except pipeline.PipelineError as e:
+        status = (
+            404 if e.code == "NOT_FOUND"
+            else 409 if e.code == "ALREADY_TERMINAL"
+            else 500
+        )
+        raise HTTPException(status_code=status, detail={"error": str(e), "code": e.code})
+
+    return ForceFailResponse(
         ok=True,
         job_id=result["job_id"],
         previous_status=result["previous_status"],

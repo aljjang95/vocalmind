@@ -233,6 +233,62 @@ def cancel_job(job_id: str, user_id: str) -> dict:
     return {"job_id": job_id, "previous_status": current, "status": "refunded"}
 
 
+# 진행중(active) 상태 — 터미널(completed/failed/refunded) 아닌 모든 단계.
+# 프론트 StudioHomeClient.ACTIVE_STATUSES 와 동일.
+ACTIVE_STATUSES: frozenset[str] = frozenset({
+    "pending", "vocal_separating", "vocal_rvc", "vocal_mixing",
+    "scene_planning", "scene_image_gen", "scene_video_gen",
+    "lipsync", "composing", "formatting", "watermarking", "finalizing",
+})
+
+
+def list_stuck_jobs(older_than_minutes: int = 30) -> list[dict]:
+    """N분 이상 updated_at 변동이 없는 active 상태 job 조회.
+
+    Modal/Runware 콜백이 유실되거나 외부 오류로 멈춰버린 job을 관리자가
+    식별하기 위함. 결과 정렬: updated_at 오름차순 (가장 오래 멈춘 순).
+    """
+    from datetime import datetime, timedelta, timezone
+
+    threshold = datetime.now(timezone.utc) - timedelta(minutes=older_than_minutes)
+    iso = threshold.isoformat()
+
+    statuses_csv = ",".join(sorted(ACTIVE_STATUSES))
+    url = f"{_sb_url()}/rest/v1/studio_jobs"
+    params = {
+        "status": f"in.({statuses_csv})",
+        "updated_at": f"lt.{iso}",
+        "select": "id,user_id,status,cost_credits,attempt_count,last_error,created_at,updated_at",
+        "order": "updated_at.asc",
+        "limit": "100",
+    }
+    with httpx.Client(timeout=10.0) as client:
+        r = client.get(url, params=params, headers=_sb_headers())
+        r.raise_for_status()
+        return r.json() or []
+
+
+def force_fail_job(job_id: str, admin_reason: str) -> dict:
+    """관리자 강제 실패 처리 — mark_failed 래퍼.
+
+    콜백 유실 등으로 stuck 상태가 된 job을 수동 종료 + 크레딧 환불.
+    소유권/cancellable 검증 없이 터미널로 이동 (관리자 책임).
+    """
+    job = get_job(job_id)
+    current = job["status"]
+    if current in {"completed", "failed", "refunded"}:
+        raise PipelineError(
+            f"이미 종료된 작업입니다 ({current})",
+            code="ALREADY_TERMINAL",
+        )
+    mark_failed(
+        job_id,
+        failed_step=f"force_failed_by_admin:{current}",
+        error=f"관리자 강제 종료 — {admin_reason[:500]}",
+    )
+    return {"job_id": job_id, "previous_status": current, "status": "refunded"}
+
+
 def increment_attempt(job_id: str) -> int:
     """attempt_count += 1 후 현재 값 반환. max_attempts 초과 판단용."""
     # Supabase RPC 없이 간단히 select → update
