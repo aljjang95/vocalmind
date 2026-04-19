@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AvatarMode, QualityTier, StylePreset } from '@/types/studio';
 import {
   DEFAULT_STUDIO_TIER,
@@ -12,6 +12,13 @@ import {
 } from '@/types/studio';
 
 type Step = 'mr' | 'record' | 'style' | 'tier' | 'avatar' | 'submit';
+
+const STEP_ORDER: Step[] = ['mr', 'record', 'style', 'tier', 'avatar', 'submit'];
+
+function prevStep(current: Step): Step | null {
+  const idx = STEP_ORDER.indexOf(current);
+  return idx > 0 ? STEP_ORDER[idx - 1] : null;
+}
 
 const STYLES: { id: StylePreset; label: string; desc: string }[] = [
   { id: 'cinematic', label: '시네마틱', desc: '영화적인 조명과 컬러 그레이딩' },
@@ -125,6 +132,21 @@ export default function NewCoverWizardClient() {
       </header>
 
       <StepIndicator step={step} />
+
+      {prevStep(step) !== null && (
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            const p = prevStep(step);
+            if (p) setStep(p);
+          }}
+          disabled={isUploading || isSubmitting}
+          className="mb-4 inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-white/60 hover:border-white/25 hover:text-white/90 disabled:opacity-40"
+        >
+          ← 이전 단계
+        </button>
+      )}
 
       {error && (
         <div className="mb-4 rounded-md border border-red-400/30 bg-red-500/10 px-4 py-2 text-sm text-red-200">
@@ -372,13 +394,25 @@ function RecordStep({
 }) {
   const [isRecording, setIsRecording] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+  const [preview, setPreview] = useState<{ blob: Blob; url: string; durationSec: number } | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startedAtRef = useRef<number>(0);
 
+  // 이전 미리듣기 URL 누수 방지 — blob URL revoke.
+  useEffect(() => {
+    return () => {
+      if (preview) URL.revokeObjectURL(preview.url);
+    };
+  }, [preview]);
+
   const start = async () => {
     try {
+      if (preview) {
+        URL.revokeObjectURL(preview.url);
+        setPreview(null);
+      }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
       chunksRef.current = [];
@@ -388,7 +422,11 @@ function RecordStep({
       recorder.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        onRecorded(blob);
+        const durationSec = Math.max(
+          1,
+          Math.round((Date.now() - startedAtRef.current) / 1000),
+        );
+        setPreview({ blob, url: URL.createObjectURL(blob), durationSec });
       };
       recorder.start();
       recorderRef.current = recorder;
@@ -403,43 +441,93 @@ function RecordStep({
   };
 
   const stop = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
     recorderRef.current?.stop();
     setIsRecording(false);
+  };
+
+  const confirmAndUpload = () => {
+    if (!preview) return;
+    if (preview.durationSec < 5) {
+      alert('녹음이 너무 짧아요. 최소 5초 이상 녹음해주세요.');
+      return;
+    }
+    onRecorded(preview.blob);
+  };
+
+  const retake = () => {
+    if (preview) {
+      URL.revokeObjectURL(preview.url);
+      setPreview(null);
+    }
+    setElapsed(0);
   };
 
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.03] p-6">
       <h2 className="text-base font-bold text-white">2. 녹음</h2>
       <p className="mt-1 text-sm text-white/60">
-        MR을 들으며 직접 노래를 녹음하세요. 3분 내외 권장.
+        MR을 다른 기기나 스피커로 재생하며 직접 녹음하세요. 3분 내외 권장, 최소 5초.
       </p>
-      <div className="mt-5 flex items-center gap-4">
-        {!isRecording ? (
-          <button
-            type="button"
-            disabled={isUploading}
-            onClick={start}
-            className="h-16 w-16 rounded-full bg-red-500 text-white hover:bg-red-400 disabled:opacity-50"
-            aria-label="녹음 시작"
-          >
-            ●
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={stop}
-            className="h-16 w-16 rounded-full bg-white text-black"
-            aria-label="정지"
-          >
-            ■
-          </button>
-        )}
-        <div className="font-mono text-lg text-white">
-          {String(Math.floor(elapsed / 60)).padStart(2, '0')}:
-          {String(elapsed % 60).padStart(2, '0')}
+
+      {!preview ? (
+        <div className="mt-5 flex items-center gap-4">
+          {!isRecording ? (
+            <button
+              type="button"
+              disabled={isUploading}
+              onClick={start}
+              className="h-16 w-16 rounded-full bg-red-500 text-white hover:bg-red-400 disabled:opacity-50"
+              aria-label="녹음 시작"
+            >
+              ●
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={stop}
+              className="h-16 w-16 rounded-full bg-white text-black"
+              aria-label="정지"
+            >
+              ■
+            </button>
+          )}
+          <div className="font-mono text-lg text-white">
+            {String(Math.floor(elapsed / 60)).padStart(2, '0')}:
+            {String(elapsed % 60).padStart(2, '0')}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="mt-5">
+          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+            <div className="mb-2 text-xs text-white/60">
+              녹음 길이: {preview.durationSec}초
+            </div>
+            <audio controls src={preview.url} className="w-full" />
+          </div>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              type="button"
+              disabled={isUploading}
+              onClick={confirmAndUpload}
+              className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-400 disabled:opacity-50"
+            >
+              {isUploading ? '업로드 중...' : '이 녹음으로 계속 →'}
+            </button>
+            <button
+              type="button"
+              disabled={isUploading}
+              onClick={retake}
+              className="rounded-lg border border-white/15 px-4 py-2 text-sm text-white/70 hover:border-white/30 hover:text-white/90 disabled:opacity-50"
+            >
+              다시 녹음
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -492,7 +580,7 @@ function AvatarStep({
 
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.03] p-6">
-      <h2 className="text-base font-bold text-white">4. 아바타 선택</h2>
+      <h2 className="text-base font-bold text-white">5. 아바타 선택</h2>
       <div className="mt-4 grid grid-cols-2 gap-3">
         {AVATARS.map((a) => (
           <button
