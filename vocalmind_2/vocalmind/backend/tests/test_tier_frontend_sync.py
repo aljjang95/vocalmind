@@ -101,6 +101,39 @@ def test_tier_budget_usd_match(tier: QualityTier):
     )
 
 
+def test_style_presets_frontend_backend_db_in_sync():
+    """스타일 프리셋 — 프론트 타입 / 백엔드 Literal / DB CHECK 3곳 일치 검증.
+
+    FAILURES #2 계열 — 한쪽 빠뜨리면 RLS에서 일치 안 하거나 UI에 누락 발생.
+    """
+    from typing import get_args
+    from infra.runware_catalog import StylePreset
+
+    backend_styles = set(get_args(StylePreset))
+
+    # 프론트 types/studio.ts
+    src_ts = FRONTEND_STUDIO_TS.read_text(encoding="utf-8")
+    # export type StylePreset = 'cinematic' | 'cozy' | ... 파싱
+    m = re.search(r"export type StylePreset\s*=\s*([^;]+);", src_ts)
+    assert m, "types/studio.ts 에서 StylePreset 타입 파싱 실패"
+    frontend_styles = set(re.findall(r"'([^']+)'", m.group(1)))
+
+    # DB migration CHECK constraint
+    migrations_dir = FRONTEND_STUDIO_TS.parent.parent / "supabase" / "migrations"
+    style_migrations = sorted(migrations_dir.glob("*studio*styles*.sql"))
+    assert style_migrations, "studio_add_styles 마이그레이션 파일을 찾지 못함"
+    latest = style_migrations[-1].read_text(encoding="utf-8")
+    check_match = re.search(r"style_preset\s+in\s*\(([^)]+)\)", latest)
+    assert check_match, "style_preset CHECK constraint 파싱 실패"
+    db_styles = set(re.findall(r"'([^']+)'", check_match.group(1)))
+
+    assert backend_styles == frontend_styles == db_styles, (
+        f"스타일 드리프트 감지 — "
+        f"backend={backend_styles} frontend={frontend_styles} db={db_styles}. "
+        f"한 곳을 수정했으면 3곳 모두 동기화 필요."
+    )
+
+
 @pytest.mark.parametrize("tier", ["draft", "pro", "studio"])
 def test_tier_image_resolution_match(tier: QualityTier):
     """FAILURES #2 핵심 필드 — 이미지 해상도 불일치가 실제 사고 원인이었음.

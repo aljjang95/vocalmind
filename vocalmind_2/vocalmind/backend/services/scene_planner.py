@@ -10,13 +10,14 @@ from __future__ import annotations
 import json
 import logging
 import uuid
-from typing import Literal
 
 import infra.anthropic_client as ai
 
-logger = logging.getLogger(__name__)
+# StylePreset 은 runware_catalog 를 단일 소스로 사용 — 중복 정의 제거(FAILURES #2 계열).
+# 기존 `from services.scene_planner import StylePreset` 호환을 위해 re-export.
+from infra.runware_catalog import StylePreset as StylePreset  # noqa: F401
 
-StylePreset = Literal["cinematic", "cozy", "retro", "ghibli", "neon_city", "fantasy"]
+logger = logging.getLogger(__name__)
 
 SCENE_SYSTEM = """당신은 뮤직비디오 씬 디자이너입니다.
 
