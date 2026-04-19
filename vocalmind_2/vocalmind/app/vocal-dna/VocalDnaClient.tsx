@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useVocalDnaStore } from '@/stores/vocalDnaStore';
 import { useAudioRecorder } from '@/lib/hooks/useAudioRecorder';
 import DnaCard from '@/components/vocal-dna/DnaCard';
@@ -28,6 +28,17 @@ export default function VocalDnaClient({ userName }: VocalDnaClientProps) {
     stop,
     reset: resetRecording,
   } = useAudioRecorder({ maxSeconds: MAX_SEC });
+
+  // DNA 분석은 Anthropic + parselmouth 호출 — 잘못된 녹음 제출 방지 위해 미리듣기.
+  const previewUrl = useMemo(
+    () => (audioBlob ? URL.createObjectURL(audioBlob) : null),
+    [audioBlob],
+  );
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   useEffect(() => {
     fetchDna();
@@ -425,8 +436,16 @@ export default function VocalDnaClient({ userName }: VocalDnaClientProps) {
                   textAlign: 'center',
                 }}
               >
-                녹음 완료 ({elapsed}초) — 분석 준비됨
+                녹음 완료 ({elapsed}초) — 들어보고 분석 시작
               </p>
+
+              {previewUrl && (
+                <audio
+                  controls
+                  src={previewUrl}
+                  style={{ width: '100%', maxWidth: '320px' }}
+                />
+              )}
 
               <button
                 type="button"

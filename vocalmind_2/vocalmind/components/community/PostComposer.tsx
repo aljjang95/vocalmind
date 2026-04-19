@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useCommunityStore } from '@/stores/communityStore';
 import { useAudioRecorder } from '@/lib/hooks/useAudioRecorder';
 import type { PostType } from '@/types';
@@ -45,6 +45,17 @@ export default function PostComposer({ onPosted }: PostComposerProps) {
 
   const audioBlob = uploadedFile?.blob ?? recordedBlob;
   const fileName = uploadedFile?.name ?? null;
+
+  // 공개 커뮤니티 게시 — 제출 전 본인 청취 필수 (실수 제출 → 삭제 요청 악순환).
+  const previewUrl = useMemo(
+    () => (audioBlob ? URL.createObjectURL(audioBlob) : null),
+    [audioBlob],
+  );
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   const startRecording = async () => {
     setError(null);
@@ -178,6 +189,10 @@ export default function PostComposer({ onPosted }: PostComposerProps) {
           </span>
         )}
       </div>
+
+      {previewUrl && !isRecording && (
+        <audio controls src={previewUrl} className="w-full mt-2" />
+      )}
 
       {/* 파일 업로드 */}
       <label className={styles.fileLabel}>

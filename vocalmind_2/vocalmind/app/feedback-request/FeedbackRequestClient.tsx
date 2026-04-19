@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAudioRecorder } from '@/lib/hooks/useAudioRecorder';
@@ -31,6 +31,17 @@ export default function FeedbackRequestClient() {
 
   const audioBlob = uploadedFile?.blob ?? recordedBlob;
   const fileName = uploadedFile?.name ?? null;
+
+  // 50,000원 결제 상품 — 제출 전 반드시 청취 가능해야 환불 분쟁 차단.
+  const previewUrl = useMemo(
+    () => (audioBlob ? URL.createObjectURL(audioBlob) : null),
+    [audioBlob],
+  );
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   const startRecording = async () => {
     setError(null);
@@ -191,10 +202,13 @@ export default function FeedbackRequestClient() {
               )}
             </div>
 
-            {hasAudio && (
-              <p className="text-[13px] text-[var(--accent)] text-center">
-                {fileName ?? `녹음 완료 (${elapsed}초)`}
-              </p>
+            {hasAudio && previewUrl && (
+              <div className="rounded-lg border border-white/[0.08] bg-black/20 p-3">
+                <p className="mb-2 text-[12px] text-[var(--accent)] text-center">
+                  {fileName ?? `녹음 완료 (${elapsed}초)`} — 선생님께 보내기 전 꼭 들어보세요
+                </p>
+                <audio controls src={previewUrl} className="w-full" />
+              </div>
             )}
 
             <div className="flex items-center gap-3.5 text-[var(--text-muted)] text-xs before:content-[''] before:flex-1 before:h-px before:bg-[var(--border-subtle)] after:content-[''] after:flex-1 after:h-px after:bg-[var(--border-subtle)]">

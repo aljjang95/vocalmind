@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import UpsellBanner from '@/components/hobby/UpsellBanner';
 import Nav from '@/components/shared/Nav';
@@ -35,6 +35,17 @@ export default function HobbyClient() {
   // 녹음 결과가 있으면 녹음 blob을, 아니면 업로드된 파일을 분석 대상으로 삼는다
   const audioBlob = uploadedFile?.blob ?? recordedBlob;
   const fileName = uploadedFile?.name ?? null;
+
+  // 제출 전 미리듣기 — AI 분석 비용 낭비 방지.
+  const previewUrl = useMemo(
+    () => (audioBlob ? URL.createObjectURL(audioBlob) : null),
+    [audioBlob],
+  );
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   const startRecording = async () => {
     setError(null);
@@ -127,10 +138,13 @@ export default function HobbyClient() {
             <input type="file" accept=".mp3,.wav,.m4a,.webm,audio/*" onChange={handleFileUpload} className="hidden" disabled={isRecording || evaluating} />
           </label>
 
-          {audioBlob && !isRecording && (
-            <p className="text-sm text-[var(--accent-light)]">
-              {fileName ?? `녹음 완료 (${elapsed}초)`}
-            </p>
+          {audioBlob && !isRecording && previewUrl && (
+            <div className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] p-3">
+              <p className="mb-2 text-xs text-[var(--accent-light)] text-center">
+                {fileName ?? `녹음 완료 (${elapsed}초)`} — 들어보고 평가 시작
+              </p>
+              <audio controls src={previewUrl} className="w-full" />
+            </div>
           )}
         </div>
 
