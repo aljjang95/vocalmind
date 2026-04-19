@@ -101,6 +101,34 @@ def test_tier_budget_usd_match(tier: QualityTier):
     )
 
 
+def test_avatar_modes_frontend_db_in_sync():
+    """AvatarMode — 프론트 타입 / DB CHECK constraint 2곳 일치 검증.
+
+    orchestrator.py에서 avatar_mode를 문자열로 직접 비교하므로 (lipsync 분기 등)
+    프론트/DB 중 한 곳이라도 누락되면 런타임 에러 경로 발생.
+    """
+    src_ts = FRONTEND_STUDIO_TS.read_text(encoding="utf-8")
+    m = re.search(r"export type AvatarMode\s*=\s*([^;]+);", src_ts)
+    assert m, "types/studio.ts 에서 AvatarMode 타입 파싱 실패"
+    frontend_modes = set(re.findall(r"'([^']+)'", m.group(1)))
+
+    migrations_dir = FRONTEND_STUDIO_TS.parent.parent / "supabase" / "migrations"
+    # avatar_mode CHECK가 포함된 마이그레이션 찾기
+    db_modes = None
+    for sql_file in sorted(migrations_dir.glob("*.sql")):
+        content = sql_file.read_text(encoding="utf-8")
+        m2 = re.search(r"avatar_mode\s+text\s+not\s+null\s+check\s*\(avatar_mode\s+in\s*\(([^)]+)\)", content)
+        if m2:
+            db_modes = set(re.findall(r"'([^']+)'", m2.group(1)))
+            # 최신 정의 기준 — 같은 이름으로 재정의되면 마지막이 유효.
+    assert db_modes is not None, "studio_jobs.avatar_mode CHECK constraint를 찾지 못함"
+
+    assert frontend_modes == db_modes, (
+        f"AvatarMode 드리프트 — frontend={frontend_modes} db={db_modes}. "
+        f"types/studio.ts AvatarMode 타입과 supabase/migrations CHECK 동기화 필요."
+    )
+
+
 def test_style_presets_frontend_backend_db_in_sync():
     """스타일 프리셋 — 프론트 타입 / 백엔드 Literal / DB CHECK 3곳 일치 검증.
 
