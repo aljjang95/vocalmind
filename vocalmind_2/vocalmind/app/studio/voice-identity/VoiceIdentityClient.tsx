@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAudioRecorder } from '@/lib/hooks/useAudioRecorder';
 
 // 10문장 — 음소 다양성 + 한국어 음운 균형 (모음/자음/받침 분포)
@@ -26,19 +26,33 @@ type Props = {
 };
 
 type ClipInfo = { storagePath: string; durationSec: number };
+type PendingClip = { blob: Blob; url: string; durationSec: number };
 
 export default function VoiceIdentityClient({ existingStatus, existingCount }: Props) {
   const router = useRouter();
   const [idx, setIdx] = useState(0);
   const [clips, setClips] = useState<Record<number, ClipInfo>>({});
+  const [pending, setPending] = useState<PendingClip | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // pending URL 누수 방지 — 새 blob URL 생성 시 이전 것 revoke.
+  const pendingRef = useRef<PendingClip | null>(null);
+  pendingRef.current = pending;
+  useEffect(() => {
+    return () => {
+      if (pendingRef.current) URL.revokeObjectURL(pendingRef.current.url);
+    };
+  }, []);
+
   const { isRecording, elapsed, start, stop, reset } = useAudioRecorder({
     maxSeconds: 12,
-    onComplete: async (blob) => {
-      await uploadClip(idx, blob);
+    onComplete: (blob) => {
+      // 이전 pending이 있으면 URL 해제 후 새 pending으로 교체.
+      if (pendingRef.current) URL.revokeObjectURL(pendingRef.current.url);
+      const durationSec = Math.max(1, elapsed);
+      setPending({ blob, url: URL.createObjectURL(blob), durationSec });
     },
     onError: (msg) => setError(msg),
   });
@@ -46,20 +60,23 @@ export default function VoiceIdentityClient({ existingStatus, existingCount }: P
   const progress = Object.keys(clips).length;
   const done = progress >= SENTENCES.length;
 
-  async function uploadClip(index: number, blob: Blob) {
+  async function uploadClip(blob: Blob, durationSec: number) {
     setIsUploading(true);
     setError(null);
     try {
       const fd = new FormData();
-      fd.append('file', blob, `voice-${index + 1}.webm`);
+      fd.append('file', blob, `voice-${idx + 1}.webm`);
       fd.append('kind', 'recording');
       const r = await fetch('/api/studio/upload', { method: 'POST', body: fd });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error ?? '업로드 실패');
       setClips((prev) => ({
         ...prev,
-        [index]: { storagePath: data.storagePath, durationSec: elapsed },
+        [idx]: { storagePath: data.storagePath, durationSec },
       }));
+      if (pendingRef.current) URL.revokeObjectURL(pendingRef.current.url);
+      setPending(null);
+      reset();
     } catch (e) {
       setError(e instanceof Error ? e.message : '업로드 오류');
     } finally {
@@ -67,8 +84,23 @@ export default function VoiceIdentityClient({ existingStatus, existingCount }: P
     }
   }
 
-  function nextSentence() {
+  function useThisTake() {
+    if (!pending) return;
+    if (pending.durationSec < 2) {
+      setError('녹음이 너무 짧아요. 문장을 처음부터 또박또박 읽어주세요.');
+      return;
+    }
+    void uploadClip(pending.blob, pending.durationSec);
+  }
+
+  function discardPending() {
+    if (pending) URL.revokeObjectURL(pending.url);
+    setPending(null);
     reset();
+  }
+
+  function nextSentence() {
+    discardPending();
     if (idx < SENTENCES.length - 1) setIdx(idx + 1);
   }
 
@@ -78,7 +110,7 @@ export default function VoiceIdentityClient({ existingStatus, existingCount }: P
       delete next[idx];
       return next;
     });
-    reset();
+    discardPending();
   }
 
   const submitting = useMemo(() => existingStatus === 'training', [existingStatus]);
@@ -170,8 +202,8 @@ export default function VoiceIdentityClient({ existingStatus, existingCount }: P
         <div className="mb-4 text-xs font-semibold text-emerald-300">이 문장을 읽어주세요</div>
         <p className="text-lg leading-relaxed text-white">{SENTENCES[idx]}</p>
 
-        <div className="mt-6 flex items-center gap-3">
-          {!clips[idx] && !isRecording && (
+        <div className="mt-6 flex flex-wrap items-center gap-3">
+          {!clips[idx] && !isRecording && !pending && (
             <button
               type="button"
               onClick={() => start().catch(() => {})}
@@ -190,7 +222,7 @@ export default function VoiceIdentityClient({ existingStatus, existingCount }: P
               ⏹ 녹음 종료 ({elapsed}s)
             </button>
           )}
-          {clips[idx] && !isRecording && (
+          {clips[idx] && !isRecording && !pending && (
             <>
               <span className="text-sm text-emerald-300">✓ 완료 ({clips[idx].durationSec}s)</span>
               <button
@@ -213,6 +245,31 @@ export default function VoiceIdentityClient({ existingStatus, existingCount }: P
           )}
           {isUploading && <span className="text-xs text-white/50">업로드 중...</span>}
         </div>
+
+        {pending && !isRecording && !isUploading && (
+          <div className="mt-4 rounded-lg border border-white/10 bg-black/20 p-3">
+            <div className="mb-2 text-xs text-white/60">
+              미리듣기 — {pending.durationSec}초. 소리가 또렷하면 사용해주세요.
+            </div>
+            <audio controls src={pending.url} className="w-full" />
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={useThisTake}
+                className="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-400"
+              >
+                이 녹음 사용
+              </button>
+              <button
+                type="button"
+                onClick={discardPending}
+                className="rounded-lg border border-white/15 px-4 py-2 text-xs text-white/70 hover:border-white/30"
+              >
+                다시 녹음
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       <nav className="mb-6 grid grid-cols-5 gap-2 text-[11px]">
@@ -220,7 +277,7 @@ export default function VoiceIdentityClient({ existingStatus, existingCount }: P
           <button
             key={i}
             type="button"
-            onClick={() => { reset(); setIdx(i); }}
+            onClick={() => { discardPending(); setIdx(i); }}
             className={`rounded-md py-2 transition-colors ${
               i === idx
                 ? 'bg-emerald-500/20 text-emerald-200'
