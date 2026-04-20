@@ -1,18 +1,22 @@
-"""credits 서비스 단위 테스트 — Supabase RPC mock."""
+"""credits 리포지토리 단위 테스트 — Supabase RPC mock (infra.supabase.gateway)."""
 from __future__ import annotations
 
 import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
 
-from services import credits
+from domain_types.credits import (
+    CreditsError,
+    InsufficientCreditsError,
+    LedgerEntry,
+)
+from infra.supabase import credits_repo as credits
 
 
 @pytest.fixture(autouse=True)
 def _env():
-    """테스트용 환경변수."""
     with patch.dict(os.environ, {
         "SUPABASE_URL": "https://test.supabase.co",
         "SUPABASE_SERVICE_ROLE_KEY": "test-key",
@@ -21,7 +25,6 @@ def _env():
 
 
 def _mock_response(status_code: int, body):
-    """httpx.Response 모킹."""
     resp = MagicMock(spec=httpx.Response)
     resp.status_code = status_code
     resp.json.return_value = body
@@ -31,11 +34,10 @@ def _mock_response(status_code: int, body):
 
 class TestConsume:
     def test_valid_consume_returns_ledger_id(self):
-        with patch("services.credits.httpx.post") as mock_post:
+        with patch("infra.supabase.gateway.httpx.post") as mock_post:
             mock_post.return_value = _mock_response(200, 12345)
             entry = credits.consume("user-1", 5, "cover_consume", job_id="job-1")
         assert entry.ledger_id == 12345
-        # RPC 인자 검증
         call = mock_post.call_args
         assert "consume_credits" in call.args[0]
         assert call.kwargs["json"] == {
@@ -46,40 +48,37 @@ class TestConsume:
         }
 
     def test_zero_amount_raises(self):
-        with pytest.raises(credits.CreditsError) as exc:
+        with pytest.raises(CreditsError) as exc:
             credits.consume("user-1", 0, "cover_consume")
         assert exc.value.code == "INVALID_AMOUNT"
 
     def test_negative_amount_raises(self):
-        with pytest.raises(credits.CreditsError):
+        with pytest.raises(CreditsError):
             credits.consume("user-1", -3, "cover_consume")
 
     def test_insufficient_credits_parsed(self):
-        """Postgres 예외 메시지에서 balance·need 파싱."""
-        with patch("services.credits.httpx.post") as mock_post:
+        with patch("infra.supabase.gateway.httpx.post") as mock_post:
             mock_post.return_value = _mock_response(
-                400,
-                {"message": "INSUFFICIENT_CREDITS: balance=3 need=5"},
+                400, {"message": "INSUFFICIENT_CREDITS: balance=3 need=5"},
             )
-            # text 속성도 검색 대상이므로 맞춤
             mock_post.return_value.text = "INSUFFICIENT_CREDITS: balance=3 need=5"
-            with pytest.raises(credits.InsufficientCreditsError) as exc:
+            with pytest.raises(InsufficientCreditsError) as exc:
                 credits.consume("user-1", 5, "cover_consume")
             assert exc.value.balance == 3
             assert exc.value.needed == 5
             assert exc.value.code == "INSUFFICIENT_CREDITS"
 
     def test_network_error_wrapped(self):
-        with patch("services.credits.httpx.post") as mock_post:
+        with patch("infra.supabase.gateway.httpx.post") as mock_post:
             mock_post.side_effect = httpx.ConnectError("DNS fail")
-            with pytest.raises(credits.CreditsError) as exc:
+            with pytest.raises(CreditsError) as exc:
                 credits.consume("user-1", 5, "cover_consume")
             assert exc.value.code == "NETWORK_ERROR"
 
 
 class TestGrant:
     def test_topup_records_payment_id(self):
-        with patch("services.credits.httpx.post") as mock_post:
+        with patch("infra.supabase.gateway.httpx.post") as mock_post:
             mock_post.return_value = _mock_response(200, 999)
             entry = credits.grant(
                 "user-2", 50, "topup_purchase",
@@ -94,8 +93,8 @@ class TestGrant:
         assert sent["p_metadata"] == {"pack": 50}
 
     def test_refund_job_delegates_to_grant(self):
-        with patch("services.credits.grant") as mock_grant:
-            mock_grant.return_value = credits.LedgerEntry(ledger_id=77)
+        with patch("infra.supabase.credits_repo.grant") as mock_grant:
+            mock_grant.return_value = LedgerEntry(ledger_id=77)
             entry = credits.refund_job("user-3", "job-3", 5)
         assert entry.ledger_id == 77
         mock_grant.assert_called_once_with(
@@ -107,7 +106,7 @@ class TestGrant:
         )
 
     def test_grant_zero_raises(self):
-        with pytest.raises(credits.CreditsError) as exc:
+        with pytest.raises(CreditsError) as exc:
             credits.grant("user-1", 0, "signup_bonus")
         assert exc.value.code == "INVALID_AMOUNT"
 
@@ -115,6 +114,6 @@ class TestGrant:
 class TestConfigGuards:
     def test_missing_env_raises(self):
         with patch.dict(os.environ, {}, clear=True):
-            with pytest.raises(credits.CreditsError) as exc:
+            with pytest.raises(CreditsError) as exc:
                 credits.consume("user-1", 1, "cover_consume")
             assert exc.value.code == "CONFIG_ERROR"
