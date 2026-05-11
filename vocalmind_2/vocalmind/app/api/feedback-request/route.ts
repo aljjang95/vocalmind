@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, isAuthResult } from '@/lib/infra/auth';
+import { validateAudioFile, getSafeAudioExtension } from '@/lib/services/upload-validation';
+
+const MAX_AUDIO_BYTES = 50 * 1024 * 1024;
 
 export async function POST(request: NextRequest) {
   const auth = await requireAuth();
@@ -16,6 +19,13 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
+  const validation = validateAudioFile(audio, { maxBytes: MAX_AUDIO_BYTES });
+  if (!validation.ok) {
+    return NextResponse.json(
+      { error: validation.error, code: validation.code },
+      { status: validation.code === 'FILE_TOO_LARGE' ? 413 : 400 },
+    );
+  }
   if (!concern?.trim()) {
     return NextResponse.json(
       { error: '고민/요청사항을 입력해주세요', code: 'NO_CONCERN' },
@@ -24,7 +34,8 @@ export async function POST(request: NextRequest) {
   }
 
   // Supabase Storage에 오디오 업로드
-  const fileName = `feedback/${user.id}/${Date.now()}-${audio.name}`;
+  const ext = getSafeAudioExtension(audio);
+  const fileName = `feedback/${user.id}/${Date.now()}.${ext}`;
   const arrayBuffer = await audio.arrayBuffer();
   const { error: uploadError } = await supabase.storage
     .from('ai-cover-songs') // 기존 버킷 재사용

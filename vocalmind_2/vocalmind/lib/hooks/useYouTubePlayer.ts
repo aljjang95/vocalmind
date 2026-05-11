@@ -34,7 +34,7 @@ declare global {
 }
 
 interface UseYouTubePlayerReturn {
-  containerRef: React.RefObject<HTMLDivElement>;
+  containerRef: React.RefObject<HTMLDivElement | null>;
   isReady: boolean;
   isPlaying: boolean;
   replay: () => void;

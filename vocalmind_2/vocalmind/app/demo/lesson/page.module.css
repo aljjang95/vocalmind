@@ -1,0 +1,665 @@
+.root {
+  display: flex;
+  height: 100vh;
+  background: #0A0F0C;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  overflow: hidden;
+  position: relative;
+}
+
+/* 배경 빛 효과 */
+.root::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 50% at 70% 40%, rgba(80,160,110,0.07) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 40% at 20% 70%, rgba(60,120,85,0.05) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── 사이드바 ── */
+.sidebar {
+  width: 192px;
+  flex-shrink: 0;
+  background: rgba(20,28,23,0.95);
+  border-right: 1px solid rgba(255,255,255,0.07);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1;
+}
+
+.logo {
+  padding: 20px 18px 18px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  font-size: 15px;
+  font-weight: 700;
+  font-family: var(--font-display);
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+}
+
+.nav {
+  flex: 1;
+  padding: 10px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 18px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  transition: all 0.15s;
+  position: relative;
+}
+
+.navItem:hover {
+  color: var(--text-secondary);
+  background: rgba(255,255,255,0.03);
+}
+
+.navItemActive {
+  border-left-color: var(--accent);
+  color: var(--accent-bright);
+  background: rgba(91,140,110,0.1);
+}
+
+.navItemActive::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  background: var(--accent);
+  border-radius: 2px 0 0 2px;
+  opacity: 0.4;
+}
+
+.navIcon {
+  font-size: 15px;
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* ── 메인 ── */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+}
+
+/* 헤더 */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 50px;
+  flex-shrink: 0;
+  background: rgba(20,28,23,0.8);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  backdrop-filter: blur(8px);
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.breadcrumbCurrent {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.timer {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+}
+
+.avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(91,140,110,0.15);
+  border: 1px solid rgba(91,140,110,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+}
+
+/* Phase 바 */
+.phaseBar {
+  padding: 16px 28px;
+  flex-shrink: 0;
+  background: rgba(20,28,23,0.6);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.phaseTrack {
+  position: relative;
+  display: flex;
+}
+
+.phaseLine {
+  position: absolute;
+  top: 13px;
+  left: 14px;
+  right: 14px;
+  height: 1px;
+  background: rgba(255,255,255,0.08);
+}
+
+.phaseLineDone {
+  position: absolute;
+  top: 13px;
+  left: 14px;
+  height: 1px;
+  width: calc(40%);
+  background: linear-gradient(to right, var(--accent), var(--accent-light));
+}
+
+.phaseStep {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+  z-index: 1;
+}
+
+.phaseDot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 400;
+  transition: all 0.3s;
+}
+
+.phaseDotDefault {
+  background: #141c17;
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-muted);
+}
+
+.phaseDotDone {
+  background: rgba(91,140,110,0.15);
+  border: 1px solid var(--accent);
+  color: var(--accent-bright);
+}
+
+.phaseDotActive {
+  background: var(--accent);
+  border: 1px solid var(--accent-light);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 0 12px rgba(91,140,110,0.5);
+}
+
+.phaseLabel {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.phaseLabelActive {
+  color: var(--accent-bright);
+  font-weight: 600;
+}
+
+/* ── 3열 콘텐츠 ── */
+.content {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  overflow: hidden;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  overflow: hidden;
+  border-right: 1px solid rgba(255,255,255,0.05);
+  position: relative;
+}
+
+.panel:last-child {
+  border-right: none;
+}
+
+.panelTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.panelTitleText {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* 파형 */
+.waveformWrap {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.waveformCanvas {
+  display: block;
+  width: 100%;
+  height: 160px;
+}
+
+.waveformGlow {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: linear-gradient(to top, rgba(91,140,110,0.08), transparent);
+  pointer-events: none;
+}
+
+.waveformStatus {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.waveformDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent-bright);
+  animation: blink 1s infinite;
+}
+
+/* 파형 범례 */
+.legend {
+  display: flex;
+  gap: 12px;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.legendDot {
+  display: inline-block;
+  width: 20px;
+  height: 1.5px;
+  border-radius: 1px;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+/* 세션 통계 */
+.statsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.statCard {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px;
+  padding: 10px 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.statCard::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(91,140,110,0.05) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.statLabel {
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.statValue {
+  font-size: 22px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  line-height: 1;
+}
+
+.statGood { color: #10B981; }
+.statWarn { color: #F59E0B; }
+
+/* ── 중앙: 녹음 ── */
+.recordCenter {
+  align-items: center;
+  justify-content: center;
+}
+
+.recordButtonWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pulseRing {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid var(--accent-light);
+  animation: pulseRing 2.2s ease-out infinite;
+  pointer-events: none;
+}
+
+.pulseRing:nth-child(2) {
+  animation-delay: 0.7s;
+  border-color: var(--accent);
+  opacity: 0.6;
+}
+
+.recordBtn {
+  width: 118px;
+  height: 118px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  transition: all 0.3s;
+  position: relative;
+  z-index: 1;
+}
+
+.recordBtnActive {
+  background: radial-gradient(circle, rgba(91,140,110,0.2) 0%, rgba(91,140,110,0.08) 100%);
+  border: 2px solid var(--accent) !important;
+  box-shadow:
+    0 0 0 1px rgba(91,140,110,0.2),
+    0 0 30px rgba(80,180,110,0.25),
+    0 0 60px rgba(80,180,110,0.1),
+    inset 0 0 20px rgba(91,140,110,0.05);
+}
+
+.recordBtnIdle {
+  background: rgba(255,255,255,0.03);
+  border: 2px solid rgba(255,255,255,0.1) !important;
+}
+
+.timerDisplay {
+  font-size: 40px;
+  font-weight: 200;
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
+  color: var(--text-primary);
+  text-shadow: 0 0 20px rgba(154,208,172,0.2);
+}
+
+.recordStatus {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.recDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-bright);
+  animation: blink 1s infinite;
+}
+
+.controls {
+  display: flex;
+  gap: 10px;
+}
+
+.controlBtn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.controlBtn:hover {
+  background: rgba(91,140,110,0.1);
+  border-color: rgba(91,140,110,0.3);
+  color: var(--accent-bright);
+}
+
+.exerciseTime {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.exerciseLabel {
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.exerciseValue {
+  font-size: 22px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ── 우: 긴장도 ── */
+.liveBadge {
+  font-size: 9px;
+  padding: 2px 8px;
+  background: rgba(16,185,129,0.1);
+  color: #10B981;
+  border-radius: 4px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  border: 1px solid rgba(16,185,129,0.2);
+}
+
+.tensionBars {
+  flex: 1;
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  padding: 0 4px;
+  min-height: 0;
+}
+
+.tensionBar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+}
+
+.tensionValue {
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  transition: color 0.9s;
+}
+
+.tensionTrack {
+  flex: 1;
+  width: 100%;
+  background: rgba(255,255,255,0.04);
+  border-radius: 6px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.05);
+  min-height: 80px;
+}
+
+.tensionFill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  border-radius: 4px 4px 0 0;
+  transition: height 1s cubic-bezier(0.4,0,0.2,1);
+}
+
+.tensionFillGlow {
+  position: absolute;
+  top: -2px;
+  left: 0;
+  right: 0;
+  height: 6px;
+  border-radius: 3px;
+  filter: blur(4px);
+  opacity: 0.7;
+}
+
+.tensionDangerLine {
+  position: absolute;
+  bottom: 60%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(245,158,11,0.2);
+  z-index: 1;
+}
+
+.tensionLabel {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* 긴장도 범례 */
+.legend2 {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 10px;
+  padding: 12px 14px;
+  flex-shrink: 0;
+}
+
+.legendTitle {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+.legendRow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.legendCircle {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── 피드백 바 ── */
+.feedbackBar {
+  padding: 12px 24px;
+  flex-shrink: 0;
+  background: rgba(20,28,23,0.7);
+  border-top: 1px solid rgba(255,255,255,0.05);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  backdrop-filter: blur(8px);
+}
+
+.feedbackIcon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.feedbackText {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.feedbackHighlight {
+  color: #F59E0B;
+  font-weight: 600;
+}
+
+/* ── 애니메이션 ── */
+@keyframes pulseRing {
+  0%   { transform: scale(1);    opacity: 0.4; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.25; }
+}

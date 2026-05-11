@@ -40,6 +40,15 @@ export default function PitchDisplay() {
   const [micError, setMicError] = useState<string | null>(null);
   const [currentPitch, setCurrentPitch] = useState<PitchData | null>(null);
   const { currentAnalysis, currentTime } = usePracticeStore();
+  const melodyDataRef = useRef(currentAnalysis?.melodyData);
+  const currentTimeRef = useRef(currentTime);
+  const micActiveRef = useRef(micActive);
+
+  useEffect(() => {
+    melodyDataRef.current = currentAnalysis?.melodyData;
+    currentTimeRef.current = currentTime;
+    micActiveRef.current = micActive;
+  }, [currentAnalysis?.melodyData, currentTime, micActive]);
 
   const onPitch = useCallback((data: PitchData) => {
     setCurrentPitch(data);
@@ -125,9 +134,9 @@ export default function PitchDisplay() {
       }
 
       // Draw melody guide overlay (if analysis is available)
-      const melodyData = currentAnalysis?.melodyData;
-      if (melodyData && melodyData.length > 1 && micActive) {
-        const playTime = currentTime; // current playback time in seconds
+      const melodyData = melodyDataRef.current;
+      if (melodyData && melodyData.length > 1 && micActiveRef.current) {
+        const playTime = currentTimeRef.current; // current playback time in seconds
         const windowStartTime = playTime - HISTORY_DURATION_SEC;
         const windowEndTime = playTime;
 

@@ -1,0 +1,9 @@
+# Worktree 자동 복사 대상 (gitignored 파일 중 새 worktree에 필요한 것)
+# 형식: .gitignore 문법
+.env
+.env.local
+.env.development
+.env.production
+config/secrets.json
+.claude/settings.local.json
+

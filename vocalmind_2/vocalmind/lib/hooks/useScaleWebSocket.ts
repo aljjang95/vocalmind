@@ -30,6 +30,20 @@ export function useScaleWebSocket(): UseScaleWebSocketReturn {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
+  const cleanup = useCallback(() => {
+    if (recorderRef.current?.state === 'recording') {
+      recorderRef.current.stop();
+    }
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    recorderRef.current = null;
+    if (wsRef.current && wsRef.current.readyState <= WebSocket.OPEN) {
+      wsRef.current.close();
+    }
+    wsRef.current = null;
+    setIsConnected(false);
+  }, []);
+
   const startSession = useCallback(async (stageId: number, feedbackMode: FeedbackMode) => {
     setError(null);
     setReport(null);
@@ -64,7 +78,10 @@ export function useScaleWebSocket(): UseScaleWebSocketReturn {
       }
     };
 
-    ws.onerror = () => setError('WebSocket 연결 실패');
+    ws.onerror = () => {
+      setError('분석 서버에 연결하지 못했습니다. 백엔드 서버가 실행 중인지 확인해주세요.');
+      cleanup();
+    };
     ws.onclose = () => setIsConnected(false);
 
     // 마이크 녹음 시작
@@ -84,25 +101,34 @@ export function useScaleWebSocket(): UseScaleWebSocketReturn {
         if (ws.readyState === WebSocket.OPEN) {
           recorder.start(CHUNK_INTERVAL_MS);
         } else {
+          if (ws.readyState === WebSocket.CLOSING || ws.readyState === WebSocket.CLOSED) {
+            setError('분석 서버 연결이 닫혔습니다. 잠시 후 다시 시도해주세요.');
+            stream.getTracks().forEach((t) => t.stop());
+            return;
+          }
           setTimeout(waitOpen, 50);
         }
       };
       waitOpen();
-    } catch {
-      setError('마이크 접근 권한이 필요합니다.');
+    } catch (e) {
+      const err = e instanceof DOMException ? e : null;
+      if (err?.name === 'NotAllowedError') {
+        setError('마이크 사용 권한이 거부되었습니다. 브라우저 설정에서 마이크 권한을 허용해주세요.');
+      } else if (err?.name === 'NotFoundError') {
+        setError('마이크를 찾을 수 없습니다. 입력 장치 연결을 확인해주세요.');
+      } else {
+        setError('마이크를 시작하지 못했습니다. 브라우저 설정과 입력 장치를 확인해주세요.');
+      }
+      cleanup();
     }
-  }, []);
+  }, [cleanup]);
 
   const stopSession = useCallback(() => {
-    if (recorderRef.current?.state === 'recording') {
-      recorderRef.current.stop();
-    }
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: 'end' }));
     }
-  }, []);
+    cleanup();
+  }, [cleanup]);
 
   return { isConnected, latestResult, report, tensionHistory, startSession, stopSession, voiceQueue, error };
 }

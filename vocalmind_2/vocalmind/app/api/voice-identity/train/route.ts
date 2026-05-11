@@ -16,9 +16,9 @@ const MIN_TOTAL_SEC = 30;
 /**
  * POST /api/voice-identity/train
  *
- * 10문장 녹음이 끝난 후 호출. voice_identities 행을 생성하고 학습 큐에 넣는다.
- * Phase 0은 Modal RVC 학습 함수 미배포 → status='training'으로 두고 운영자가 수동 학습 후
- * 'ready'로 플립. Modal 학습 함수 배포(W4) 이후 dispatch_rvc_train 자동 호출.
+ * 10문장 녹음이 끝난 후 호출. voice_identities 행을 생성한다.
+ * 현재 배포 단위에는 voice_identity 전용 자동 학습 워커가 없으므로
+ * status='training'은 자동 완료 약속이 아니라 관리자 학습/승인 대기 상태다.
  */
 export async function POST(request: NextRequest) {
   const auth = await requireAuth();
@@ -117,12 +117,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 학습 큐에 clip 경로 기록 (service role 테이블 아직 없음 — Phase 0은 관리 대시보드에서 수동)
-  // TODO(W4): modal_dispatcher.dispatch_rvc_train 자동 호출
-
   return NextResponse.json({
     voiceIdentityId: inserted.id,
     status: inserted.status,
-    message: '음색 학습을 시작했어요. 완료되면 알려드릴게요.',
+    message: '녹음이 접수됐어요. 관리자 학습/승인 후 커버 제작에 사용할 수 있습니다.',
   });
 }

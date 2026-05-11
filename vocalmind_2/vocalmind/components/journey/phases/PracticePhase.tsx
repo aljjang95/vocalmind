@@ -57,7 +57,7 @@ export default function PracticePhase({ stage, stageId, onComplete }: Props) {
       completedRef.current = true;
       onComplete(report, tensionHistory);
     }
-  }, [report, onComplete]);
+  }, [report, tensionHistory, onComplete]);
 
   // Accumulate pitch history from analysis chunks
   useEffect(() => {

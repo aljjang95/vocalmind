@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, isAuthResult } from '@/lib/infra/auth';
+import { validateAudioFile } from '@/lib/services/upload-validation';
 import type { AuditionEvent, AuditionEntry } from '@/types';
+
+const MAX_AUDIO_BYTES = 50 * 1024 * 1024;
 
 // GET /api/audition — 현재 active 이벤트 조회
 // GET /api/audition?entries=true — 이벤트 + 참가자 목록
@@ -132,6 +135,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: '오디오 파일이 필요합니다.', code: 'NO_AUDIO' },
         { status: 400 },
+      );
+    }
+    const validation = validateAudioFile(audio, { maxBytes: MAX_AUDIO_BYTES });
+    if (!validation.ok) {
+      return NextResponse.json(
+        { error: validation.error, code: validation.code },
+        { status: validation.code === 'FILE_TOO_LARGE' ? 413 : 400 },
       );
     }
 

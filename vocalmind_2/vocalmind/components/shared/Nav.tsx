@@ -22,7 +22,9 @@ export default function Nav() {
     window.addEventListener('scroll', onScroll, { passive: true });
 
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    supabase.auth.getUser()
+      .then(({ data }) => setUser(data.user))
+      .catch(() => setUser(null));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       const prev = user;
       setUser(session?.user ?? null);

@@ -1,3 +1,8 @@
+﻿# AGENTS.md
+
+> Migrated from CLAUDE.md for Codex on 2026-05-11.
+> Claude-specific commands, MCP tool names, hooks, and permission assumptions may not be available in Codex. Treat them as project context unless this file explicitly maps them to Codex tools.
+
 # HLB 보컬스튜디오
 
 Next.js 14 + Python FastAPI 보컬 트레이닝 AI 웹앱.
@@ -464,3 +469,4 @@ vocalmind-orchestrator             # ORCHESTRATOR_SECRET (Modal → BFF 콜백 �
 
 
 @import ~/.claude/rules/voice-ref-icl.md
+

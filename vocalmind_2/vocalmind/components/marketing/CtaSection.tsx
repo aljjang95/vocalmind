@@ -12,9 +12,9 @@ export default function CtaSection() {
   const [loggedIn, setLoggedIn] = useState(false);
 
   useEffect(() => {
-    createClient().auth.getUser().then(({ data }) => {
-      if (data.user) setLoggedIn(true);
-    });
+    createClient().auth.getUser()
+      .then(({ data }) => setLoggedIn(Boolean(data.user)))
+      .catch(() => setLoggedIn(false));
   }, []);
 
   return (

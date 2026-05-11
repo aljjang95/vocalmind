@@ -1,5 +1,6 @@
 import ScalePracticeClient from './ScalePracticeClient';
 
-export default function Page({ params }: { params: { stageId: string } }) {
-  return <ScalePracticeClient stageId={parseInt(params.stageId, 10)} />;
+export default async function Page({ params }: { params: Promise<{ stageId: string }> }) {
+  const { stageId } = await params;
+  return <ScalePracticeClient stageId={parseInt(stageId, 10)} />;
 }

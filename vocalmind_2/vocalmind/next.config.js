@@ -1,3 +1,5 @@
+const path = require('path');
+
 /** @type {import('next').NextConfig} */
 
 // RISK-2: CSP nonce 패턴
@@ -8,6 +10,7 @@
 
 const nextConfig = {
   reactStrictMode: true,
+  outputFileTracingRoot: path.join(__dirname),
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'images.unsplash.com' },

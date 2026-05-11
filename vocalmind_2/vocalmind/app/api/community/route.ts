@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, isAuthResult } from '@/lib/infra/auth';
+import { validateAudioFile, getSafeAudioExtension } from '@/lib/services/upload-validation';
 import type { FeedTab, CommunityPost } from '@/types';
 
 const DEFAULT_LIMIT = 20;
+const MAX_AUDIO_BYTES = 50 * 1024 * 1024;
 
 // GET /api/community — 피드 조회 (로그인 선택: 투표 여부 표시 목적)
 export async function GET(request: NextRequest) {
@@ -147,6 +149,13 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+    const validation = validateAudioFile(audio, { maxBytes: MAX_AUDIO_BYTES });
+    if (!validation.ok) {
+      return NextResponse.json(
+        { error: validation.error, code: validation.code },
+        { status: validation.code === 'FILE_TOO_LARGE' ? 413 : 400 },
+      );
+    }
 
     if (!['cover', 'battle', 'free'].includes(type)) {
       return NextResponse.json(
@@ -180,7 +189,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Supabase Storage 오디오 업로드
-    const ext = audio.name.split('.').pop() ?? 'webm';
+    const ext = getSafeAudioExtension(audio);
     const storagePath = `covers/${user.id}/${post.id}.${ext}`;
     const audioBuffer = await audio.arrayBuffer();
 

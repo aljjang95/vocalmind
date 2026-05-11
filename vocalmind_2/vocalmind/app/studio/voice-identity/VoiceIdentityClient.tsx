@@ -165,7 +165,7 @@ export default function VoiceIdentityClient({ existingStatus, existingCount }: P
           <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-emerald-400" />
           <h2 className="text-lg font-bold text-white">음색 학습 중</h2>
           <p className="mt-2 text-sm text-white/60">
-            평균 5~10분 정도 걸려요. 완료되면 이메일로 알려드릴게요.
+            녹음이 접수됐고 관리자 학습/승인 대기 중입니다. 승인 완료 후 커버 제작에 사용할 수 있어요.
           </p>
           <p className="mt-1 text-xs text-white/40">제출한 녹음: {existingCount}개</p>
         </div>
