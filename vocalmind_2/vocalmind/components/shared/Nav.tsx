@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -15,6 +15,7 @@ export default function Nav() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const showToast = useToastStore((s) => s.show);
 
   useEffect(() => {
@@ -37,6 +38,34 @@ export default function Nav() {
     return () => { window.removeEventListener('scroll', onScroll); subscription.unsubscribe(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const blockedTargets = Array.from(document.querySelectorAll<HTMLElement>('main, footer'));
+    const menuButton = menuButtonRef.current;
+
+    if (menuOpen) {
+      document.body.style.overflow = 'hidden';
+      blockedTargets.forEach((target) => {
+        target.setAttribute('aria-hidden', 'true');
+        target.setAttribute('inert', '');
+      });
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      document.body.style.overflow = '';
+      blockedTargets.forEach((target) => {
+        target.removeAttribute('aria-hidden');
+        target.removeAttribute('inert');
+      });
+      window.removeEventListener('keydown', onKeyDown);
+      if (menuOpen) menuButton?.focus();
+    };
+  }, [menuOpen]);
 
   const handleLogout = async () => {
     const supabase = createClient();
@@ -134,9 +163,12 @@ export default function Nav() {
           </ul>
 
           <button
+            ref={menuButtonRef}
             className="flex min-[960px]:hidden flex-col gap-[5px] cursor-pointer p-1.5 bg-transparent border-none"
             onClick={() => setMenuOpen(true)}
             aria-label="메뉴 열기"
+            aria-expanded={menuOpen}
+            aria-controls="mobile-menu"
           >
             <span className="block w-[22px] h-[1.5px] bg-[var(--text)] rounded-sm transition-all" />
             <span className="block w-[22px] h-[1.5px] bg-[var(--text)] rounded-sm transition-all" />
@@ -147,11 +179,13 @@ export default function Nav() {
 
       {/* Mobile Menu */}
       <div
+        id="mobile-menu"
         className={`fixed inset-0 z-[300] bg-[var(--bg-base)]/97 backdrop-blur-[24px] flex-col items-center justify-center gap-[22px] ${
           menuOpen ? 'flex' : 'hidden'
         }`}
         role="dialog"
         aria-modal="true"
+        aria-label="모바일 메뉴"
       >
         <button className="absolute top-[22px] right-[26px] bg-transparent border-none text-[var(--muted)] text-2xl cursor-pointer" onClick={closeMenu} aria-label="메뉴 닫기">✕</button>
         {navLinks.map((link) => (

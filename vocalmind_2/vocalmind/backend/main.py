@@ -2,11 +2,37 @@ from __future__ import annotations
 
 import logging as _logging
 import os as _os
+from pathlib import Path as _Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 _logger = _logging.getLogger(__name__)
+
+
+def _load_local_env_files() -> None:
+    """Load local dev env files without adding a runtime dependency."""
+    root = _Path(__file__).resolve().parent
+    env_paths = [root / ".env", root.parent / ".env.local"]
+
+    for env_path in env_paths:
+        if not env_path.exists():
+            continue
+        for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            if key and key not in _os.environ:
+                _os.environ[key] = value
+
+    if not _os.environ.get("SUPABASE_URL") and _os.environ.get("NEXT_PUBLIC_SUPABASE_URL"):
+        _os.environ["SUPABASE_URL"] = _os.environ["NEXT_PUBLIC_SUPABASE_URL"]
+
+
+_load_local_env_files()
 
 
 def _check_phase0_env() -> list[str]:

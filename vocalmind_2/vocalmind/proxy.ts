@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr';
 
 // 로그인 없이 접근 가능한 경로
 const PUBLIC_PATHS = ['/', '/auth/login', '/auth/signup', '/auth/callback', '/scale-practice', '/journey', '/pricing', '/payment', '/demo'];
+const PUBLIC_ASSET_PATHS = ['/favicon.ico', '/icon.svg', '/robots.txt', '/sitemap.xml'];
 // 선생님 전용 경로 (로그인 필요, 이메일 검사는 page.tsx/API에서 처리)
 const TEACHER_PATHS = ['/teacher'];
 
@@ -61,7 +62,10 @@ export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   // ── 라우트 보호 ──
-  const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/')) || pathname.startsWith('/auth/');
+  const isPublic =
+    PUBLIC_ASSET_PATHS.includes(pathname) ||
+    PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/')) ||
+    pathname.startsWith('/auth/');
   const isApi = pathname.startsWith('/api/');
 
   if (!user && !isPublic && !isApi) {
@@ -90,6 +94,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon.ico|icon.svg|robots.txt|sitemap.xml).*)',
   ],
 };
