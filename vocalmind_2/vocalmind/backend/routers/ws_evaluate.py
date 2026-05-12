@@ -115,7 +115,7 @@ async def ws_evaluate(ws: WebSocket, token: str | None = Query(default=None)):
                 except Exception as e:
                     await ws.send_json({"type": "error", "message": f"청크 분석 실패: {e}"})
 
-    except WebSocketDisconnect:
+    except (WebSocketDisconnect, RuntimeError):
         pass
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)

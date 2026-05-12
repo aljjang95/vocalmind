@@ -73,9 +73,12 @@ async def ws_scale_practice(ws: WebSocket):
                     # 리포트 음성 (모든 모드)
                     summary_text = report.get("summary", "")
                     if summary_text:
-                        voice_bytes = await synthesize_feedback(summary_text)
-                        if voice_bytes:
-                            await ws.send_bytes(voice_bytes)
+                        try:
+                            voice_bytes = await synthesize_feedback(summary_text)
+                            if voice_bytes:
+                                await ws.send_bytes(voice_bytes)
+                        except Exception:
+                            logger.warning("[ws/scale] 리포트 음성 생성 실패", exc_info=True)
                     break
 
             elif "bytes" in message:
@@ -135,14 +138,17 @@ async def ws_scale_practice(ws: WebSocket):
                             last_feedback = feedback
 
                         if same_feedback_count < 3:
-                            voice_bytes = await synthesize_feedback(feedback)
-                            if voice_bytes:
-                                await ws.send_bytes(voice_bytes)
+                            try:
+                                voice_bytes = await synthesize_feedback(feedback)
+                                if voice_bytes:
+                                    await ws.send_bytes(voice_bytes)
+                            except Exception:
+                                logger.warning("[ws/scale] 음성 피드백 생성 실패", exc_info=True)
 
                 except Exception:
                     logger.warning("[ws/scale] 청크 분석 실패", exc_info=True)
 
-    except WebSocketDisconnect:
+    except (WebSocketDisconnect, RuntimeError):
         pass
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)

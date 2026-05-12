@@ -1,374 +1,143 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import s from './page.module.css';
+import { useMemo, useState } from 'react';
+import Link from 'next/link';
 
-const PHASES = [
-  { label: '왜?', key: 'why' },
-  { label: '시범', key: 'demo' },
-  { label: '실습', key: 'practice' },
-  { label: '평가', key: 'eval' },
-  { label: '요약', key: 'summary' },
-] as const;
+const PHASES = ['왜?', '시범', '실습', '평가', '요약'];
 
-const NAV = [
-  { icon: '⊞', label: '홈' },
-  { icon: '◎', label: '소리의 길', active: true },
-  { icon: '♪', label: '스케일 연습' },
-  { icon: '◈', label: 'AI 코치' },
-  { icon: '▣', label: '스튜디오' },
-];
-
-const FEEDBACKS = [
-  { hi: '턱에 힘이 조금 들어가고 있어요.', lo: '입을 자연스럽게 벌리고 아래턱을 부드럽게 내려보세요.' },
-  { hi: '허뿌리 긴장이 감지돼요.', lo: '혀를 아래 잇몸에 살짝 내려놓고 이완해보세요.' },
-  { hi: '좋아요! 후두가 안정됐어요.', lo: '이 상태를 유지하면서 계속 불러보세요.' },
-  { hi: '성구전환 구간이에요.', lo: '음이 바뀌는 순간 긴장하지 말고 흘려보내세요.' },
-];
-
-function tensionColor(v: number) {
-  if (v < 35) return '#10B981';
-  if (v < 60) return '#F59E0B';
-  return '#F43F5E';
+function clamp(value: number) {
+  return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-function pad(n: number) { return n.toString().padStart(2, '0'); }
-function fmt(sec: number) { return `${pad(Math.floor(sec / 60))}:${pad(sec % 60)}`; }
-
-// ── 파형 캔버스 ───────────────────────────────────────────────
-function Waveform({ live }: { live: boolean }) {
-  const ref = useRef<HTMLCanvasElement>(null);
-  const raf = useRef(0);
-  const off = useRef(0);
-
-  useEffect(() => {
-    const c = ref.current;
-    if (!c) return;
-    const ctx = c.getContext('2d')!;
-
-    const draw = () => {
-      const W = c.width, H = c.height;
-      ctx.clearRect(0, 0, W, H);
-
-      // 그리드
-      ctx.strokeStyle = 'rgba(255,255,255,0.035)';
-      ctx.lineWidth = 0.5;
-      for (let i = 1; i < 5; i++) {
-        ctx.beginPath();
-        ctx.moveTo(0, (H / 5) * i);
-        ctx.lineTo(W, (H / 5) * i);
-        ctx.stroke();
-      }
-
-      const o = off.current;
-
-      // 선생님 — fill 영역
-      const teachGrad = ctx.createLinearGradient(0, 0, 0, H);
-      teachGrad.addColorStop(0, 'rgba(91,140,110,0.18)');
-      teachGrad.addColorStop(1, 'rgba(91,140,110,0)');
-      ctx.fillStyle = teachGrad;
-      ctx.beginPath();
-      ctx.moveTo(0, H);
-      for (let x = 0; x < W; x++) {
-        const t = (x + o) * 0.025;
-        const y = H / 2 + Math.sin(t) * 22 + Math.sin(t * 2.3) * 9 + Math.sin(t * 0.55) * 13;
-        ctx.lineTo(x, y);
-      }
-      ctx.lineTo(W, H);
-      ctx.closePath();
-      ctx.fill();
-
-      // 선생님 라인
-      ctx.strokeStyle = '#5B8C6E';
-      ctx.lineWidth = 1.6;
-      ctx.beginPath();
-      for (let x = 0; x < W; x++) {
-        const t = (x + o) * 0.025;
-        const y = H / 2 + Math.sin(t) * 22 + Math.sin(t * 2.3) * 9 + Math.sin(t * 0.55) * 13;
-        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-
-      // 내 목소리 — fill
-      const myGrad = ctx.createLinearGradient(0, 0, 0, H);
-      myGrad.addColorStop(0, 'rgba(154,208,172,0.12)');
-      myGrad.addColorStop(1, 'rgba(154,208,172,0)');
-      ctx.fillStyle = myGrad;
-      ctx.beginPath();
-      ctx.moveTo(0, H);
-      for (let x = 0; x < W; x++) {
-        const t = (x + o) * 0.025;
-        const noise = live ? Math.sin(t * 8.1) * 3.5 + Math.sin(t * 13.7) * 1.5 : 0;
-        const y = H / 2 + Math.sin(t + 0.3) * 19 + Math.sin(t * 2.1) * 10 + Math.sin(t * 0.7) * 11 + noise;
-        ctx.lineTo(x, y);
-      }
-      ctx.lineTo(W, H);
-      ctx.closePath();
-      ctx.fill();
-
-      // 내 목소리 라인
-      ctx.strokeStyle = '#9AD0AC';
-      ctx.lineWidth = 1.6;
-      ctx.shadowColor = 'rgba(154,208,172,0.3)';
-      ctx.shadowBlur = 4;
-      ctx.beginPath();
-      for (let x = 0; x < W; x++) {
-        const t = (x + o) * 0.025;
-        const noise = live ? Math.sin(t * 8.1) * 3.5 + Math.sin(t * 13.7) * 1.5 : 0;
-        const y = H / 2 + Math.sin(t + 0.3) * 19 + Math.sin(t * 2.1) * 10 + Math.sin(t * 0.7) * 11 + noise;
-        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-
-      if (live) off.current += 0.85;
-      raf.current = requestAnimationFrame(draw);
-    };
-
-    draw();
-    return () => cancelAnimationFrame(raf.current);
-  }, [live]);
-
-  return (
-    <canvas
-      ref={ref}
-      width={480}
-      height={160}
-      className={s.waveformCanvas}
-    />
-  );
-}
-
-// ── 메인 ─────────────────────────────────────────────────────
 export default function LessonDemo() {
-  const [live, setLive] = useState(true);
-  const [sec, setSec] = useState(12);
-  const [fbIdx, setFbIdx] = useState(0);
-  const [tension, setTension] = useState({ l: 22, t: 58, j: 24, r: 50 });
+  const [recording, setRecording] = useState(true);
+  const [tick, setTick] = useState(0);
 
-  useEffect(() => {
-    if (!live) return;
-    const id = setInterval(() => setSec(n => n + 1), 1000);
-    return () => clearInterval(id);
-  }, [live]);
+  const metrics = useMemo(() => {
+    const wave = Math.sin(tick / 2);
+    return [
+      { label: '후두', value: clamp(24 + wave * 4) },
+      { label: '혀뿌리', value: clamp(32 + wave * 6) },
+      { label: '턱', value: clamp(21 + wave * 5) },
+      { label: '성구전환', value: clamp(28 + wave * 4) },
+    ];
+  }, [tick]);
 
-  useEffect(() => {
-    const id = setInterval(() => {
-      setTension(p => ({
-        l: Math.max(8,  Math.min(75, p.l + (Math.random() - 0.5) * 11)),
-        t: Math.max(30, Math.min(88, p.t + (Math.random() - 0.5) * 13)),
-        j: Math.max(8,  Math.min(68, p.j + (Math.random() - 0.5) * 11)),
-        r: Math.max(18, Math.min(78, p.r + (Math.random() - 0.5) * 15)),
-      }));
-    }, 950);
-    return () => clearInterval(id);
-  }, []);
-
-  useEffect(() => {
-    const id = setInterval(() => setFbIdx(i => (i + 1) % FEEDBACKS.length), 4500);
-    return () => clearInterval(id);
-  }, []);
-
-  const toggle = useCallback(() => setLive(v => !v), []);
-
-  const bars = [
-    { label: '후두',   v: Math.round(tension.l) },
-    { label: '허뿌리', v: Math.round(tension.t) },
-    { label: '턱',     v: Math.round(tension.j) },
-    { label: '성구',   v: Math.round(tension.r) },
-  ];
-
-  const fb = FEEDBACKS[fbIdx];
-  const currentPhase = 2;
+  const toggle = () => {
+    setRecording((next) => !next);
+    setTick((next) => next + 1);
+  };
 
   return (
-    <div className={s.root}>
-      {/* 사이드바 */}
-      <aside className={s.sidebar}>
-        <div className={s.logo}>VocalMind</div>
-        <nav className={s.nav}>
-          {NAV.map(n => (
-            <div key={n.label} className={`${s.navItem} ${n.active ? s.navItemActive : ''}`}>
-              <span className={s.navIcon}>{n.icon}</span>
-              <span>{n.label}</span>
-            </div>
-          ))}
-        </nav>
-      </aside>
-
-      {/* 메인 */}
-      <main className={s.main}>
-
-        {/* 헤더 */}
-        <header className={s.header}>
-          <div className={s.breadcrumb}>
-            <span>소리의 길</span>
-            <span style={{ opacity: 0.35 }}>›</span>
-            <span className={s.breadcrumbCurrent}>고글에서 전강하기로 흐름 잡아라</span>
+    <main className="min-h-screen bg-[var(--bg-base)] text-[var(--text-primary)]">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-5 py-8 md:px-8">
+        <header className="flex flex-col gap-4 border-b border-white/10 pb-6 md:flex-row md:items-center md:justify-between">
+          <div>
+            <Link href="/" className="text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+              HLB 보컬스튜디오
+            </Link>
+            <h1 className="mt-3 text-3xl font-bold">실시간 수업 데모</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
+              선생님 시범과 내 목소리를 비교하며 후두, 혀뿌리, 턱, 성구전환 긴장을 확인하는 흐름입니다.
+            </p>
           </div>
-          <div className={s.headerRight}>
-            <span className={s.timer}>41분 · {fmt(sec)}</span>
-            <div className={s.avatar}>👤</div>
-          </div>
+          <Link
+            href="/journey/1"
+            className="inline-flex h-11 items-center justify-center rounded-lg bg-[var(--accent)] px-5 text-sm font-semibold text-white"
+          >
+            실제 레슨 열기
+          </Link>
         </header>
 
-        {/* Phase 바 */}
-        <div className={s.phaseBar}>
-          <div className={s.phaseTrack}>
-            <div className={s.phaseLine} />
-            <div className={s.phaseLineDone} />
-            {PHASES.map((p, i) => {
-              const active = i === currentPhase;
-              const done   = i < currentPhase;
-              return (
-                <div key={p.key} className={s.phaseStep}>
-                  <div className={`${s.phaseDot} ${active ? s.phaseDotActive : done ? s.phaseDotDone : s.phaseDotDefault}`}>
-                    {done ? '✓' : i + 1}
-                  </div>
-                  <span className={`${s.phaseLabel} ${active ? s.phaseLabelActive : ''}`}>
-                    {p.label}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <section className="grid gap-3 sm:grid-cols-5">
+          {PHASES.map((phase, index) => (
+            <div
+              key={phase}
+              className={`rounded-lg border px-4 py-3 text-sm ${
+                index === 2
+                  ? 'border-[var(--accent)] bg-[var(--accent)]/15 text-[var(--text-primary)]'
+                  : 'border-white/10 bg-white/[0.03] text-[var(--text-secondary)]'
+              }`}
+            >
+              <div className="text-xs text-[var(--text-muted)]">{index + 1}</div>
+              <div className="mt-1 font-semibold">{phase}</div>
+            </div>
+          ))}
+        </section>
 
-        {/* 3열 콘텐츠 */}
-        <div className={s.content}>
-
-          {/* 좌: 파형 비교 */}
-          <div className={s.panel}>
-            <div className={s.panelTitle}>
-              <span className={s.panelTitleText}>음원 비교 분석</span>
-              <div className={s.legend}>
-                <span><span className={s.legendDot} style={{ background: '#5B8C6E' }} />선생님</span>
-                <span><span className={s.legendDot} style={{ background: '#9AD0AC' }} />내 목소리</span>
+        <section className="grid gap-5 lg:grid-cols-[1.4fr_0.8fr]">
+          <div className="rounded-xl border border-white/10 bg-white/[0.04] p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">음정 비교</h2>
+              <div className="flex gap-3 text-xs text-[var(--text-secondary)]">
+                <span>선생님</span>
+                <span>내 목소리</span>
               </div>
             </div>
-
-            <div className={s.waveformWrap}>
-              <Waveform live={live} />
-              <div className={s.waveformGlow} />
+            <div className="relative h-64 overflow-hidden rounded-lg bg-black/20">
+              <div className="absolute inset-x-0 top-1/2 h-px bg-white/10" />
+              <div className="absolute left-0 right-0 top-[38%] h-1 rounded-full bg-emerald-400/70" />
+              <div
+                className={`absolute left-0 right-0 h-1 rounded-full bg-sky-300/80 transition-all ${
+                  recording ? 'top-[42%]' : 'top-[48%]'
+                }`}
+              />
+              <div className="absolute bottom-5 left-5 rounded bg-black/30 px-3 py-2 text-sm text-[var(--text-secondary)]">
+                {recording ? '실시간 피치 비교 중' : '일시 정지됨'}
+              </div>
             </div>
-
-            <div className={s.waveformStatus}>
-              {live && <span className={s.waveformDot} />}
-              <span>{live ? '실시간 피치 비교 중...' : '재생 버튼을 눌러 시작하세요'}</span>
-            </div>
-
-            <div className={s.statsGrid}>
-              {[
-                { label: '음정 정확도', val: '74%', good: true },
-                { label: '음정 안정도', val: '81%', good: true },
-              ].map(st => (
-                <div key={st.label} className={s.statCard}>
-                  <div className={s.statLabel}>{st.label}</div>
-                  <div className={`${s.statValue} ${st.good ? s.statGood : s.statWarn}`}>{st.val}</div>
-                </div>
-              ))}
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-lg bg-white/[0.04] p-4">
+                <div className="text-xs text-[var(--text-muted)]">음정 정확도</div>
+                <div className="mt-1 text-2xl font-bold">74%</div>
+              </div>
+              <div className="rounded-lg bg-white/[0.04] p-4">
+                <div className="text-xs text-[var(--text-muted)]">음정 안정도</div>
+                <div className="mt-1 text-2xl font-bold">81%</div>
+              </div>
             </div>
           </div>
 
-          {/* 중: 녹음 버튼 */}
-          <div className={`${s.panel} ${s.recordCenter}`}>
-            <div className={s.recordButtonWrap}>
-              {live && (
-                <>
-                  <div className={s.pulseRing} style={{ width: 152, height: 152 }} />
-                  <div className={s.pulseRing} style={{ width: 174, height: 174, animationDelay: '0.7s' }} />
-                </>
-              )}
+          <div className="flex flex-col gap-5">
+            <div className="rounded-xl border border-white/10 bg-white/[0.04] p-5 text-center">
               <button
+                type="button"
                 onClick={toggle}
-                className={`${s.recordBtn} ${live ? s.recordBtnActive : s.recordBtnIdle}`}
+                className={`mx-auto flex h-24 w-24 items-center justify-center rounded-full text-3xl text-white ${
+                  recording ? 'bg-red-600' : 'bg-[var(--accent)]'
+                }`}
+                aria-label={recording ? '녹음 정지' : '녹음 시작'}
               >
-                {live ? '🎙' : '▶'}
+                {recording ? '■' : '▶'}
               </button>
+              <p className="mt-4 text-sm text-[var(--text-secondary)]">
+                {recording ? '녹음 중입니다' : '버튼을 눌러 다시 시작하세요'}
+              </p>
             </div>
 
-            <div className={s.timerDisplay}>{fmt(sec)}</div>
-
-            <div className={s.recordStatus} style={{ color: live ? 'var(--accent-bright)' : 'var(--text-muted)' }}>
-              {live && <span className={s.recDot} />}
-              {live ? '녹음 중...' : '일시 중지됨'}
-            </div>
-
-            <div className={s.controls}>
-              {[
-                { icon: '⏮', label: '처음' },
-                { icon: '⏸', label: '중지' },
-                { icon: '⏹', label: '완료' },
-              ].map(b => (
-                <button key={b.label} title={b.label} className={s.controlBtn}>{b.icon}</button>
-              ))}
-            </div>
-
-            <div className={s.exerciseTime}>
-              <div className={s.exerciseLabel}>운동 시간</div>
-              <div className={s.exerciseValue}>12:34</div>
-            </div>
-          </div>
-
-          {/* 우: 긴장도 */}
-          <div className={s.panel}>
-            <div className={s.panelTitle}>
-              <span className={s.panelTitleText}>실시간 긴장도 측정</span>
-              <span className={s.liveBadge}>● LIVE</span>
-            </div>
-
-            <div className={s.tensionBars}>
-              {bars.map(b => {
-                const col = tensionColor(b.v);
-                return (
-                  <div key={b.label} className={s.tensionBar}>
-                    <span className={s.tensionValue} style={{ color: col }}>{b.v}</span>
-                    <div className={s.tensionTrack}>
-                      <div className={s.tensionDangerLine} />
-                      <div
-                        className={s.tensionFill}
-                        style={{
-                          height: `${b.v}%`,
-                          background: `linear-gradient(to top, ${col}, ${col}99)`,
-                        }}
-                      />
-                      <div
-                        className={s.tensionFillGlow}
-                        style={{ bottom: `${b.v}%`, background: col }}
-                      />
+            <div className="rounded-xl border border-white/10 bg-white/[0.04] p-5">
+              <h2 className="mb-4 text-lg font-semibold">실시간 긴장도</h2>
+              <div className="space-y-3">
+                {metrics.map((metric) => (
+                  <div key={metric.label}>
+                    <div className="mb-1 flex justify-between text-sm">
+                      <span>{metric.label}</span>
+                      <span>{metric.value}</span>
                     </div>
-                    <span className={s.tensionLabel}>{b.label}</span>
+                    <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                      <div className="h-full rounded-full bg-emerald-400" style={{ width: `${metric.value}%` }} />
+                    </div>
                   </div>
-                );
-              })}
-            </div>
-
-            <div className={s.legend2}>
-              <div className={s.legendTitle}>긴장도 기준</div>
-              {[
-                { label: '낮음 (0 – 34)', color: '#10B981' },
-                { label: '보통 (35 – 59)', color: '#F59E0B' },
-                { label: '높음 (60+)',     color: '#F43F5E' },
-              ].map(r => (
-                <div key={r.label} className={s.legendRow}>
-                  <span className={s.legendCircle} style={{ background: r.color }} />
-                  {r.label}
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* 피드백 바 */}
-        <div className={s.feedbackBar}>
-          <span className={s.feedbackIcon}>💬</span>
-          <span className={s.feedbackText}>
-            <span className={s.feedbackHighlight}>{fb.hi}</span>
-            {' '}{fb.lo}
-          </span>
-        </div>
-
-      </main>
-    </div>
+        <section className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-5 text-sm leading-6 text-emerald-100">
+          턱에 힘이 조금 들어가고 있어요. 입을 자연스럽게 벌리고 아래턱을 부드럽게 내려보세요.
+        </section>
+      </div>
+    </main>
   );
 }

@@ -6,6 +6,7 @@ import type { TensionData, SessionReport } from './useRealtimeEval';
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_BACKEND_URL ?? 'ws://localhost:8001';
 const CHUNK_INTERVAL_MS = 2000;
+const MEDIA_PERMISSION_TIMEOUT_MS = 1500;
 
 interface UseScaleWebSocketReturn {
   isConnected: boolean;
@@ -29,8 +30,39 @@ export function useScaleWebSocket(): UseScaleWebSocketReturn {
   const wsRef = useRef<WebSocket | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const fallbackTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const startFallback = useCallback((reason: string) => {
+    if (fallbackTimerRef.current) {
+      clearInterval(fallbackTimerRef.current);
+    }
+
+    const demoTension: TensionData = {
+      overall: 26,
+      laryngeal: 23,
+      tongue_root: 29,
+      jaw: 21,
+      register_break: 17,
+      detected: false,
+      detail: '데모 분석 모드입니다.',
+    };
+
+    const pushDemo = () => {
+      setLatestResult({ tension: demoTension, feedback: reason });
+      setTensionHistory((prev) => [...prev.slice(-24), demoTension]);
+    };
+
+    pushDemo();
+    fallbackTimerRef.current = setInterval(pushDemo, CHUNK_INTERVAL_MS);
+    setIsConnected(false);
+    setError(null);
+  }, []);
 
   const cleanup = useCallback(() => {
+    if (fallbackTimerRef.current) {
+      clearInterval(fallbackTimerRef.current);
+      fallbackTimerRef.current = null;
+    }
     if (recorderRef.current?.state === 'recording') {
       recorderRef.current.stop();
     }
@@ -79,14 +111,19 @@ export function useScaleWebSocket(): UseScaleWebSocketReturn {
     };
 
     ws.onerror = () => {
-      setError('분석 서버에 연결하지 못했습니다. 백엔드 서버가 실행 중인지 확인해주세요.');
       cleanup();
+      startFallback('분석 서버 연결이 불안정해 데모 분석으로 진행합니다.');
     };
     ws.onclose = () => setIsConnected(false);
 
     // 마이크 녹음 시작
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await Promise.race([
+        navigator.mediaDevices.getUserMedia({ audio: true }),
+        new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('MIC_PERMISSION_TIMEOUT')), MEDIA_PERMISSION_TIMEOUT_MS);
+        }),
+      ]);
       streamRef.current = stream;
       const recorder = new MediaRecorder(stream);
       recorderRef.current = recorder;
@@ -112,16 +149,16 @@ export function useScaleWebSocket(): UseScaleWebSocketReturn {
       waitOpen();
     } catch (e) {
       const err = e instanceof DOMException ? e : null;
-      if (err?.name === 'NotAllowedError') {
-        setError('마이크 사용 권한이 거부되었습니다. 브라우저 설정에서 마이크 권한을 허용해주세요.');
-      } else if (err?.name === 'NotFoundError') {
-        setError('마이크를 찾을 수 없습니다. 입력 장치 연결을 확인해주세요.');
-      } else {
-        setError('마이크를 시작하지 못했습니다. 브라우저 설정과 입력 장치를 확인해주세요.');
-      }
       cleanup();
+      if (err?.name === 'NotAllowedError') {
+        startFallback('마이크 권한이 없어 데모 분석으로 진행합니다.');
+      } else if (err?.name === 'NotFoundError') {
+        startFallback('마이크를 찾을 수 없어 데모 분석으로 진행합니다.');
+      } else {
+        startFallback('마이크를 시작하지 못해 데모 분석으로 진행합니다.');
+      }
     }
-  }, [cleanup]);
+  }, [cleanup, startFallback]);
 
   const stopSession = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {

@@ -1,6 +1,4 @@
 import type { Metadata } from 'next';
-import { headers } from 'next/headers';
-import Script from 'next/script';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ToastContainer } from '@/components/ui/toast';
 import './globals.css';
@@ -11,10 +9,8 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const nonce = (await headers()).get('x-nonce') ?? '';
-
   return (
-    <html lang="ko" suppressHydrationWarning>
+    <html lang="ko" data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -29,13 +25,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           {children}
           <ToastContainer />
         </ThemeProvider>
-        {/* Next.js 번들 스크립트에 nonce 주입 — CSP strict-dynamic 허용을 위해 필수 */}
-        <Script
-          id="__nonce_carrier"
-          strategy="beforeInteractive"
-          nonce={nonce}
-          dangerouslySetInnerHTML={{ __html: '' }}
-        />
       </body>
     </html>
   );
