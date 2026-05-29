@@ -21,7 +21,15 @@ export async function requireAdmin(): Promise<AdminResult | AdminError> {
   if (!isAuthResult(auth)) return auth;
 
   const adminEmail = process.env.TEACHER_EMAIL;
-  if (!adminEmail || auth.user.email !== adminEmail) {
+  if (!adminEmail) {
+    // 무음 실패 방지 — 미설정을 권한 거부(403)와 구분해 운영자가 즉시 인지하도록 한다.
+    console.error('[CONFIG] TEACHER_EMAIL 미설정 — 관리자 엔드포인트 비활성. 환경변수 설정 필요.');
+    return NextResponse.json(
+      { error: '관리자 기능 비활성화', code: 'ADMIN_NOT_CONFIGURED' },
+      { status: 503 },
+    );
+  }
+  if (auth.user.email !== adminEmail) {
     return NextResponse.json(
       { error: '관리자 권한 필요', code: 'FORBIDDEN' },
       { status: 403 },

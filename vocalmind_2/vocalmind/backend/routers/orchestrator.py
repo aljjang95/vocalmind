@@ -7,6 +7,7 @@
 """
 from __future__ import annotations
 
+import hmac
 import logging
 import os
 from typing import Literal
@@ -30,7 +31,8 @@ def _verify_secret(header_value: str | None) -> None:
     expected = os.environ.get("ORCHESTRATOR_SECRET")
     if not expected:
         raise HTTPException(status_code=500, detail="ORCHESTRATOR_SECRET 미설정")
-    if header_value != expected:
+    # timing-safe 비교 — early-exit 사이드채널 차단. compare_digest는 길이 불일치 시 자동 False.
+    if header_value is None or not hmac.compare_digest(header_value, expected):
         raise HTTPException(status_code=401, detail="인증 실패")
 
 

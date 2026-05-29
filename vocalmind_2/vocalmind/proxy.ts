@@ -19,7 +19,7 @@ export async function proxy(request: NextRequest) {
     : `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval' https://www.youtube.com blob:`;
   const connectSrc = isDev
     ? `connect-src 'self' ws://localhost:* http://localhost:* https://*.supabase.co https://*.modal.run https://d1pzp51pvbm36p.cloudfront.net https://api.tosspayments.com blob:`
-    : `connect-src 'self' wss://* https://*.supabase.co https://*.modal.run https://*.fly.dev https://d1pzp51pvbm36p.cloudfront.net https://api.tosspayments.com blob:`;
+    : `connect-src 'self' wss://*.supabase.co wss://*.fly.dev https://*.supabase.co https://*.modal.run https://*.fly.dev https://d1pzp51pvbm36p.cloudfront.net https://api.tosspayments.com blob:`;
   const csp = [
     `default-src 'self'`, scriptSrc,
     `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
