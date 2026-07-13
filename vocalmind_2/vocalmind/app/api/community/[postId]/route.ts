@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { buildInternalAudioUrl, createAdminSignedStorageUrl } from '@/lib/services/storage-url';
 import type { CommunityPost } from '@/types';
 
 // GET /api/community/[postId] — 단일 게시글 상세
@@ -47,13 +48,15 @@ export async function GET(
       supabase.from('avatars').select('base_image_url').eq('user_id', row.user_id).maybeSingle(),
     ]);
 
+    const avatarUrl = await createAdminSignedStorageUrl('avatars', avatar?.base_image_url);
+
     const post: CommunityPost = {
       id: row.id,
       user_id: row.user_id,
       type: row.type,
       title: row.title,
       description: row.description,
-      audio_url: row.audio_url,
+      audio_url: row.audio_url ? buildInternalAudioUrl('community', row.id) : null,
       song_title: row.song_title,
       song_artist: row.song_artist,
       vote_count: row.vote_count,
@@ -61,7 +64,7 @@ export async function GET(
       is_deleted: row.is_deleted,
       created_at: row.created_at,
       author_name: profile?.name ?? '익명',
-      author_avatar_url: avatar?.base_image_url ?? undefined,
+      author_avatar_url: avatarUrl ?? undefined,
       has_voted: hasVoted,
     };
 

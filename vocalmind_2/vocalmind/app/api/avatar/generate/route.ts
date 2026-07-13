@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, isAuthResult } from '@/lib/infra/auth';
+import { createAdminSignedStorageUrl } from '@/lib/services/storage-url';
 import type { AvatarData } from '@/types';
 
 const PLACEHOLDER_URL = '/assets/avatar-items/placeholder-avatar.png';
@@ -23,6 +24,19 @@ function buildPrompt(voiceType: string | null): string {
   const styleHint = voiceType ? (styleMap[voiceType] ?? '') : '';
   return [basePrompt, styleHint].filter(Boolean).join(' ');
 }
+async function signAvatarData(avatar: AvatarData): Promise<AvatarData> {
+  const [baseImageUrl, refImageUrl] = await Promise.all([
+    createAdminSignedStorageUrl('avatars', avatar.base_image_url),
+    createAdminSignedStorageUrl('avatars', avatar.ref_image_url),
+  ]);
+
+  return {
+    ...avatar,
+    base_image_url: baseImageUrl ?? avatar.base_image_url,
+    ref_image_url: refImageUrl,
+  };
+}
+
 
 // GET: 현재 유저의 아바타 조회
 export async function GET() {
@@ -45,7 +59,7 @@ export async function GET() {
     );
   }
 
-  return NextResponse.json(data as AvatarData);
+  return NextResponse.json(await signAvatarData(data as AvatarData));
 }
 
 // POST: AI 아바타 생성 (voiceType + 선택적 referenceImage)
@@ -104,8 +118,7 @@ export async function POST(req: NextRequest) {
       });
 
     if (!refUploadErr && refUpload) {
-      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(refPath);
-      refImageStorageUrl = urlData.publicUrl;
+      refImageStorageUrl = refPath;
     }
   }
 
@@ -164,8 +177,7 @@ export async function POST(req: NextRequest) {
               .from('avatars')
               .upload(fileName, buf, { contentType: 'image/png', upsert: true });
             if (uploadData) {
-              const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(fileName);
-              finalImageUrl = urlData.publicUrl;
+              finalImageUrl = fileName;
             }
           }
         }
@@ -198,5 +210,5 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  return NextResponse.json(avatarRow as AvatarData);
+  return NextResponse.json(await signAvatarData(avatarRow as AvatarData));
 }

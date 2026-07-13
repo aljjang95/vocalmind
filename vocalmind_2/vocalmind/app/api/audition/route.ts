@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, isAuthResult } from '@/lib/infra/auth';
 import { validateAudioFile } from '@/lib/services/upload-validation';
+import { buildInternalAudioUrl, createAdminSignedStorageUrl } from '@/lib/services/storage-url';
 import type { AuditionEvent, AuditionEntry } from '@/types';
 
 const MAX_AUDIO_BYTES = 50 * 1024 * 1024;
@@ -86,7 +87,10 @@ export async function GET(request: NextRequest) {
         for (const row of profileRows) profileMap.set(row.id, row.name);
       }
       if (avatarRows) {
-        for (const row of avatarRows) avatarMap.set(row.user_id, row.base_image_url);
+        for (const row of avatarRows) {
+          const avatarUrl = await createAdminSignedStorageUrl('avatars', row.base_image_url);
+          if (avatarUrl) avatarMap.set(row.user_id, avatarUrl);
+        }
       }
     }
 
@@ -95,7 +99,7 @@ export async function GET(request: NextRequest) {
         id: e.id,
         event_id: e.event_id,
         user_id: e.user_id,
-        audio_url: e.audio_url,
+        audio_url: buildInternalAudioUrl('audition', e.id),
         vote_count: e.vote_count,
         rank: e.rank,
         created_at: e.created_at,
@@ -200,11 +204,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: urlData } = supabase.storage
-      .from('audition-audio')
-      .getPublicUrl(storagePath);
-
-    const audioUrl = urlData.publicUrl;
+    const audioUrl = storagePath;
 
     // audition_entries insert
     const { data: entryRow, error: insertError } = await supabase
@@ -237,7 +237,7 @@ export async function POST(request: NextRequest) {
       id: entryRow.id,
       event_id: entryRow.event_id,
       user_id: entryRow.user_id,
-      audio_url: entryRow.audio_url,
+      audio_url: buildInternalAudioUrl('audition', entryRow.id),
       vote_count: entryRow.vote_count,
       rank: entryRow.rank,
       created_at: entryRow.created_at,

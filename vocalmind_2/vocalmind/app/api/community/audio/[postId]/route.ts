@@ -5,6 +5,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminSignedStorageUrl } from '@/lib/services/storage-url';
 
 export async function GET(
   _request: NextRequest,
@@ -31,16 +32,14 @@ export async function GET(
   }
 
   // Supabase Storage에서 signed URL 생성 (60초 만료)
-  const { data: signedUrl } = await supabase.storage
-    .from('community-audio')
-    .createSignedUrl(post.audio_url, 60);
+  const signedUrl = await createAdminSignedStorageUrl('community-audio', post.audio_url, 60);
 
-  if (!signedUrl?.signedUrl) {
+  if (!signedUrl) {
     return NextResponse.json({ error: '오디오 로드 실패' }, { status: 500 });
   }
 
   // signed URL로 리다이렉트 (직접 URL 노출 최소화)
-  return NextResponse.redirect(signedUrl.signedUrl, {
+  return NextResponse.redirect(signedUrl, {
     headers: {
       'Cache-Control': 'no-store, no-cache, must-revalidate',
       'X-Robots-Tag': 'noindex, nofollow',

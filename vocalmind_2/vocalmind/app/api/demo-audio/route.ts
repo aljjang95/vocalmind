@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, isAuthResult } from '@/lib/infra/auth';
+import { createAdminSignedStorageUrl } from '@/lib/services/storage-url';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 const TEACHER_EMAIL = process.env.TEACHER_EMAIL;
 const BUCKET = 'demo-audio';
@@ -13,7 +15,8 @@ const ALLOWED_TYPES = ['audio/wav', 'audio/mpeg', 'audio/ogg', 'audio/webm', 'au
 export async function POST(request: NextRequest) {
   const auth = await requireAuth();
   if (!isAuthResult(auth)) return auth;
-  const { user, supabase } = auth;
+  const { user } = auth;
+  const adminSupabase = createAdminClient();
   if (user.email !== TEACHER_EMAIL) {
     return NextResponse.json({ error: '권한이 없습니다' }, { status: 403 });
   }
@@ -49,9 +52,9 @@ export async function POST(request: NextRequest) {
   const buffer = Buffer.from(await audio.arrayBuffer());
 
   // 기존 파일 삭제 후 업로드
-  await supabase.storage.from(BUCKET).remove([filePath]);
+  await adminSupabase.storage.from(BUCKET).remove([filePath]);
 
-  const { error: uploadError } = await supabase.storage
+  const { error: uploadError } = await adminSupabase.storage
     .from(BUCKET)
     .upload(filePath, buffer, { contentType, upsert: true });
 
@@ -59,9 +62,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `업로드 실패: ${uploadError.message}` }, { status: 500 });
   }
 
-  const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(filePath);
+  const signedUrl = await createAdminSignedStorageUrl(BUCKET, filePath);
 
-  return NextResponse.json({ url: urlData.publicUrl, stageId });
+  return NextResponse.json({ url: signedUrl, stageId });
 }
 
 /**
@@ -70,19 +73,19 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   const auth = await requireAuth();
   if (!isAuthResult(auth)) return auth;
-  const { user, supabase } = auth;
+  const { user } = auth;
+  const adminSupabase = createAdminClient();
   if (user.email !== TEACHER_EMAIL) {
     return NextResponse.json({ error: '권한이 없습니다' }, { status: 403 });
   }
 
   const stages = [];
   for (let id = 1; id <= MAX_STAGE; id++) {
-    const { data: files } = await supabase.storage.from(BUCKET).list(`stage-${id}`);
+    const { data: files } = await adminSupabase.storage.from(BUCKET).list(`stage-${id}`);
     const hasDemo = (files ?? []).length > 0;
     let url: string | null = null;
     if (hasDemo && files && files[0]) {
-      const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(`stage-${id}/${files[0].name}`);
-      url = urlData.publicUrl;
+      url = await createAdminSignedStorageUrl(BUCKET, `stage-${id}/${files[0].name}`);
     }
     stages.push({ stageId: id, hasDemo, url });
   }

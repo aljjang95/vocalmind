@@ -1,0 +1,7 @@
+{
+  "tool_name": "mcp__claude-in-chrome__get_page_text",
+  "tool_input_preview": "{\"tabId\":900435856}",
+  "error": "Failed to extract page text: Cannot access a chrome:// URL",
+  "timestamp": "2026-07-13T05:45:05.910Z",
+  "retry_count": 1
+}

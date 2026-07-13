@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { requireAuth, isAuthResult } from '@/lib/infra/auth';
 import { validateAudioFile, getSafeAudioExtension } from '@/lib/services/upload-validation';
+import { buildInternalAudioUrl, createAdminSignedStorageUrl } from '@/lib/services/storage-url';
 import type { FeedTab, CommunityPost } from '@/types';
 
 const DEFAULT_LIMIT = 20;
@@ -85,7 +86,10 @@ export async function GET(request: NextRequest) {
         for (const row of profileRows) profileMap.set(row.id, row.name);
       }
       if (avatarRows) {
-        for (const row of avatarRows) avatarMap.set(row.user_id, row.base_image_url);
+        for (const row of avatarRows) {
+          const avatarUrl = await createAdminSignedStorageUrl('avatars', row.base_image_url);
+          if (avatarUrl) avatarMap.set(row.user_id, avatarUrl);
+        }
       }
     }
 
@@ -97,7 +101,7 @@ export async function GET(request: NextRequest) {
         type: p.type,
         title: p.title,
         description: p.description,
-        audio_url: p.audio_url,
+        audio_url: p.audio_url ? buildInternalAudioUrl('community', p.id) : null,
         song_title: p.song_title,
         song_artist: p.song_artist,
         vote_count: p.vote_count,
@@ -209,10 +213,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: urlData } = supabase.storage
-      .from('community-audio')
-      .getPublicUrl(storagePath);
-    const audioUrl = urlData.publicUrl;
+    const audioUrl = storagePath;
 
     // audio_url 업데이트
     await supabase
@@ -229,7 +230,7 @@ export async function POST(request: NextRequest) {
 
     const communityPost: CommunityPost = {
       ...post,
-      audio_url: audioUrl,
+      audio_url: buildInternalAudioUrl('community', post.id),
       author_name: profile?.name ?? '익명',
       author_avatar_url: undefined,
       has_voted: false,
