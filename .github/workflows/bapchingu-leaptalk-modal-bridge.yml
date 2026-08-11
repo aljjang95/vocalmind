@@ -1,0 +1,252 @@
+name: Bapchingu LeapTalk Modal Credential Bridge
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - .github/modal-leaptalk-credential-trigger
+      - .github/workflows/bapchingu-leaptalk-modal-bridge.yml
+
+permissions:
+  contents: read
+  statuses: write
+
+concurrency:
+  group: vocalmind-bapchingu-leaptalk-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+
+env:
+  TARGET_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  EXPECTED_RENDERER_URL: https://aljjang95--bapchingu-leaptalk-renderer.modal.run
+  CANDIDATE_MODAL_TOKEN_ID_1: ${{ secrets.MODAL_TOKEN_ID }}
+  CANDIDATE_MODAL_TOKEN_SECRET_1: ${{ secrets.MODAL_TOKEN_SECRET }}
+  CANDIDATE_MODAL_TOKEN_ID_2: ${{ secrets.MODAL_API_TOKEN_ID }}
+  CANDIDATE_MODAL_TOKEN_SECRET_2: ${{ secrets.MODAL_API_TOKEN_SECRET }}
+  CANDIDATE_MODAL_TOKEN_ID_3: ${{ secrets.MODAL_KEY_ID }}
+  CANDIDATE_MODAL_TOKEN_SECRET_3: ${{ secrets.MODAL_KEY_SECRET }}
+  CANDIDATE_MODAL_TOKEN_ID_4: ${{ secrets.MODAL_ACCESS_KEY }}
+  CANDIDATE_MODAL_TOKEN_SECRET_4: ${{ secrets.MODAL_ACCESS_SECRET }}
+
+jobs:
+  validate-deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Mark credential bridge pending
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl --fail-with-body --silent --show-error -X POST \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${TARGET_SHA}" \
+            -d '{"state":"pending","context":"modal/vocalmind-credential-bridge","description":"Checking VocalMind Modal deployment credentials"}' \
+            >/dev/null
+
+      - name: Check out trigger branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 1
+
+      - name: Check out LeapTalk deployment source
+        uses: actions/checkout@v4
+        with:
+          repository: aljjang95/cinematic-v2
+          ref: main
+          path: cinematic-v2
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Modal CLI
+        run: python -m pip install "modal>=1.5,<2"
+
+      - name: Validate deployment source
+        run: |
+          python -m py_compile \
+            cinematic-v2/modal/bapchingu_leaptalk_gateway.py \
+            cinematic-v2/modal/bapchingu_leaptalk_renderer.py
+
+      - name: Validate registered VocalMind Modal credentials
+        id: credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/modal-credential-bridge.py <<'PY'
+          from __future__ import annotations
+
+          import os
+          import subprocess
+          from pathlib import Path
+
+          pairs = []
+          for index in range(1, 5):
+              id_key = f"CANDIDATE_MODAL_TOKEN_ID_{index}"
+              secret_key = f"CANDIDATE_MODAL_TOKEN_SECRET_{index}"
+              token_id = os.environ.get(id_key, "").strip()
+              token_secret = os.environ.get(secret_key, "").strip()
+              if token_id.startswith("ak-") and token_secret.startswith("as-"):
+                  pairs.append((id_key, secret_key, token_id, token_secret))
+
+          output = Path(os.environ["GITHUB_OUTPUT"])
+          for id_key, secret_key, token_id, token_secret in pairs:
+              child = os.environ.copy()
+              child["MODAL_TOKEN_ID"] = token_id
+              child["MODAL_TOKEN_SECRET"] = token_secret
+              child.pop("MODAL_ENVIRONMENT", None)
+              result = subprocess.run(
+                  ["modal", "token", "info"],
+                  env=child,
+                  stdout=subprocess.DEVNULL,
+                  stderr=subprocess.DEVNULL,
+                  timeout=45,
+                  check=False,
+              )
+              if result.returncode == 0:
+                  with output.open("a", encoding="utf-8") as handle:
+                      handle.write("valid=true\n")
+                      handle.write(f"id_key={id_key}\n")
+                      handle.write(f"secret_key={secret_key}\n")
+                  raise SystemExit(0)
+
+          with output.open("a", encoding="utf-8") as handle:
+              handle.write("valid=false\n")
+              handle.write(f"candidate_pair_count={len(pairs)}\n")
+          raise SystemExit(1)
+          PY
+          python /tmp/modal-credential-bridge.py
+
+      - name: Create secret-safe Modal command wrapper
+        if: steps.credentials.outputs.valid == 'true'
+        env:
+          DISCOVERED_MODAL_ID_KEY: ${{ steps.credentials.outputs.id_key }}
+          DISCOVERED_MODAL_SECRET_KEY: ${{ steps.credentials.outputs.secret_key }}
+        run: |
+          cat > /tmp/modal-command.py <<'PY'
+          from __future__ import annotations
+          import os
+          import subprocess
+          import sys
+
+          id_key = os.environ["DISCOVERED_MODAL_ID_KEY"]
+          secret_key = os.environ["DISCOVERED_MODAL_SECRET_KEY"]
+          token_id = os.environ.get(id_key, "").strip()
+          token_secret = os.environ.get(secret_key, "").strip()
+          if not token_id.startswith("ak-") or not token_secret.startswith("as-"):
+              raise SystemExit(65)
+          child = os.environ.copy()
+          child["MODAL_TOKEN_ID"] = token_id
+          child["MODAL_TOKEN_SECRET"] = token_secret
+          child.pop("MODAL_ENVIRONMENT", None)
+          raise SystemExit(subprocess.run(sys.argv[1:], env=child, check=False).returncode)
+          PY
+
+      - name: Hydrate LeapTalk model volume
+        id: hydrate
+        if: steps.credentials.outputs.valid == 'true'
+        env:
+          DISCOVERED_MODAL_ID_KEY: ${{ steps.credentials.outputs.id_key }}
+          DISCOVERED_MODAL_SECRET_KEY: ${{ steps.credentials.outputs.secret_key }}
+        run: |
+          cd cinematic-v2
+          python /tmp/modal-command.py \
+            modal run modal/bapchingu_leaptalk_renderer.py::download_models
+
+      - name: Deploy LeapTalk L40S renderer
+        id: deploy
+        if: steps.hydrate.outcome == 'success'
+        env:
+          DISCOVERED_MODAL_ID_KEY: ${{ steps.credentials.outputs.id_key }}
+          DISCOVERED_MODAL_SECRET_KEY: ${{ steps.credentials.outputs.secret_key }}
+        run: |
+          cd cinematic-v2
+          python /tmp/modal-command.py \
+            modal deploy modal/bapchingu_leaptalk_renderer.py
+
+      - name: Verify renderer readiness
+        id: ready
+        if: steps.deploy.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 45); do
+            status="$(curl \
+              --silent \
+              --show-error \
+              --location \
+              --connect-timeout 30 \
+              --max-time 240 \
+              --output /tmp/leaptalk-ready.json \
+              --write-out '%{http_code}' \
+              "${EXPECTED_RENDERER_URL}/readyz" || true)"
+            if [ "${status}" = "200" ] && python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path('/tmp/leaptalk-ready.json').read_text(encoding='utf-8'))
+          raise SystemExit(0 if payload.get('ok') is True else 1)
+          PY
+            then
+              exit 0
+            fi
+            sleep 20
+          done
+          cat /tmp/leaptalk-ready.json 2>/dev/null || true
+          exit 1
+
+      - name: Upload bridge evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vocalmind-modal-credential-bridge
+          path: /tmp/leaptalk-ready.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Publish bridge result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VALID: ${{ steps.credentials.outputs.valid }}
+          PAIR_COUNT: ${{ steps.credentials.outputs.candidate_pair_count }}
+          HYDRATE_OUTCOME: ${{ steps.hydrate.outcome }}
+          DEPLOY_OUTCOME: ${{ steps.deploy.outcome }}
+          READY_OUTCOME: ${{ steps.ready.outcome }}
+        shell: bash
+        run: |
+          if [ "${VALID}" != "true" ]; then
+            STATE=failure
+            DESC="VocalMind has no active Modal deploy credential (${PAIR_COUNT:-0} candidate pairs)"
+          elif [ "${HYDRATE_OUTCOME}" != "success" ]; then
+            STATE=failure
+            DESC="VocalMind credential valid, LeapTalk model hydration failed"
+          elif [ "${DEPLOY_OUTCOME}" != "success" ]; then
+            STATE=failure
+            DESC="LeapTalk model hydrated, Modal deployment failed"
+          elif [ "${READY_OUTCOME}" != "success" ]; then
+            STATE=failure
+            DESC="LeapTalk deployed, renderer readiness failed"
+          else
+            STATE=success
+            DESC="LeapTalk L40S renderer deployed and ready through VocalMind credentials"
+          fi
+          PAYLOAD="{\"state\":\"${STATE}\",\"context\":\"modal/vocalmind-credential-bridge\",\"description\":\"${DESC}\""
+          if [ "${STATE}" = "success" ]; then
+            PAYLOAD="${PAYLOAD},\"target_url\":\"${EXPECTED_RENDERER_URL}\""
+          fi
+          PAYLOAD="${PAYLOAD}}"
+          curl --silent --show-error -X POST \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${TARGET_SHA}" \
+            -d "${PAYLOAD}" >/dev/null
+
+          test "${READY_OUTCOME}" = "success"
