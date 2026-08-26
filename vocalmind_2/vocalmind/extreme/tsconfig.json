@@ -1,0 +1,29 @@
+{
+  "include": ["**/*.ts", "**/*.tsx", "worker-configuration.d.ts"],
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    "types": [
+      "./worker-configuration.d.ts",
+      "bun",
+      "node",
+      "vite/client",
+      "@cloudflare/vitest-plugin/types"
+    ],
+    "paths": {
+      "#/*": ["./src/*"]
+    }
+  }
+}

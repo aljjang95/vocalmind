@@ -1,0 +1,7 @@
+interface Env {
+  BETTER_AUTH_SECRET?: string
+  BETTER_AUTH_URL?: string
+  CONTROL_PLANE_ADMIN_KEY?: string
+  MIGRATION_MODE?: string
+  SUBSCRIPTION_WORKER_AUTH_KEYS?: string
+}

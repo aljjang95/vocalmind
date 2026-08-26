@@ -1,0 +1,155 @@
+{
+  "schema": "apex-acceptance-matrix/v1",
+  "goal": "Migrate Vocalmind identity, 28-stage progress, and learner evaluation reads from the preserved Supabase snapshot to a product-specific Cloudflare Worker and D1 without invoking paid providers.",
+  "source": {
+    "repositoryRevision": "e9f1290726484f63e375dcf326a8910c36661eba",
+    "targetPath": "vocalmind_2/vocalmind/extreme/",
+    "d1DatabaseId": "d5f1e35e-eed9-48c4-8456-7d16ba583986",
+    "preAuthBackup": {
+      "path": "migration/backups/vocalmind-pre-auth-cutover-2026-08-27.sql",
+      "bytes": 74402,
+      "sha256": "B09A976C58FD291900044F10A6CB62D4E6F7DF8E97E78DC36824511F49A27577"
+    }
+  },
+  "remoteCandidate": {
+    "url": "https://vocalmind-production.affinity-agent-studio.workers.dev",
+    "deploymentId": "b0caa968-4130-4bee-b874-1d8b3b3aee00",
+    "versionId": "4883b826-1e47-4e3c-92a5-fe28ef5c3995",
+    "observedAt": "2026-08-27T02:30:54.9906950+09:00",
+    "migrationMode": "shadow",
+    "productionAuthority": "deployment-gated"
+  },
+  "subjectBoundary": {
+    "included": [
+      "preserved email/password and Google identity representation",
+      "new email/password sign-up and session authentication",
+      "learner-scoped profile, progress, and evaluation reads",
+      "28-stage progress write and best-score preservation",
+      "runtime readiness, resource bindings, and migration parity"
+    ],
+    "excluded": [
+      "payment execution",
+      "voice inference or audio generation",
+      "Google OAuth provider execution",
+      "legacy Next.js feature parity",
+      "public production authority"
+    ]
+  },
+  "rollback": {
+    "code": "Redeploy the pre-candidate Worker version or remove the shadow Worker.",
+    "runtime": "Keep productionAuthority=deployment-gated and migrationMode=shadow.",
+    "data": "The migrations only add auth tables, indexes, and imported copies. Restore the pre-auth D1 export if the new auth tables must be removed; supabase_* snapshot tables remain unchanged."
+  },
+  "requirements": [
+    {
+      "id": "AUTH-01",
+      "behavior": "A preserved Supabase bcrypt credential signs in through Better Auth without a password reset.",
+      "state": "external_gate",
+      "progress": "partial",
+      "evidence": {
+        "local": "runtime.test.ts imports and signs in a preserved $2a$ bcrypt fixture without resetting it",
+        "remote": "D1 reports 2 source credentials, 2 imported credentials, and 0 missing credentials",
+        "audit": "430 legacy files were scanned without exposing values; no documented plaintext password candidate existed, so matchedAccounts=0 and remoteSignIns=0",
+        "next": "Verify one current password for each of the two imported email/password accounts without resetting or guessing credentials"
+      }
+    },
+    {
+      "id": "AUTH-02",
+      "behavior": "A new learner can sign up, obtain a session, and receive a matching profile.",
+      "state": "verified",
+      "progress": "complete",
+      "evidence": "Remote E2E created two accounts, obtained two sessions and two profiles, then restored all baseline counts."
+    },
+    {
+      "id": "AUTH-03",
+      "behavior": "Preserved Google identities can complete Google OAuth on the Cloudflare candidate.",
+      "state": "external_gate",
+      "progress": "partial",
+      "evidence": {
+        "data": "2 source Google identities were represented by 2 auth_account rows with 0 missing identities",
+        "blocker": "A Google OAuth client and callback flow are not configured or verified on the Cloudflare candidate",
+        "next": "Configure the existing approved Google OAuth client for the Worker callback and complete one authenticated browser flow"
+      }
+    },
+    {
+      "id": "AUTHZ-01",
+      "behavior": "Unauthenticated learner data requests return 401.",
+      "state": "verified",
+      "progress": "complete",
+      "evidence": "Remote /api/me/dashboard returned 401 without a session; runtime.test.ts covers the same boundary."
+    },
+    {
+      "id": "AUTHZ-02",
+      "behavior": "A learner receives only progress and evaluations whose user_id equals the session user id.",
+      "state": "verified",
+      "progress": "complete",
+      "evidence": "Two remote learners wrote different stage records and neither dashboard exposed the other learner's row; crossTenantIsolation=true."
+    },
+    {
+      "id": "DATA-01",
+      "behavior": "All source users, password credentials, and Google identities are represented in the Cloudflare auth tables.",
+      "state": "verified",
+      "progress": "complete",
+      "evidence": "Remote parity is users 4/4, password credentials 2/2, Google identities 2/2, with all missing counts equal to 0."
+    },
+    {
+      "id": "DATA-02",
+      "behavior": "A learner progress write preserves the highest score, increments attempts, and never decreases a passed state.",
+      "state": "verified",
+      "progress": "complete",
+      "evidence": "runtime.test.ts verifies monotonic best_score, attempts, and passed behavior; remote E2E persisted two owner-scoped stage writes."
+    },
+    {
+      "id": "READY-01",
+      "behavior": "Readiness verifies auth plus D1, R2, Vectorize, Workers AI, and Durable Object bindings without paid inference.",
+      "state": "verified",
+      "progress": "complete",
+      "evidence": "Remote /api/ready returned 200 with all bindings true, all parity dimensions true, and paidCalls=0."
+    },
+    {
+      "id": "COST-01",
+      "behavior": "The verified flow performs zero payment, voice, image, or direct provider API calls.",
+      "state": "verified",
+      "progress": "complete",
+      "evidence": "Remote E2E reported paidCalls=0 and verify:no-provider-api reported directProviderApiExecution=false."
+    },
+    {
+      "id": "VISUAL-01",
+      "behavior": "The product-specific practice desk passes desktop, 360px, error, empty, and reduced-motion surface QA.",
+      "state": "not_verified",
+      "progress": "partial",
+      "evidence": {
+        "implemented": "The customer surface now renders only real profile, 28-stage progress, and evaluation data with explicit loading, empty, error, auth, and reduced-motion states.",
+        "missing": "The Codex in-app browser service was unavailable during the current visual capture pass, so no screenshot-based PASS is claimed."
+      }
+    },
+    {
+      "id": "RELEASE-01",
+      "behavior": "Typecheck, lint, tests, Workerd smoke, build, dry deploy, remote migrations, remote E2E, and cleanup pass.",
+      "state": "candidate",
+      "progress": "partial",
+      "evidence": {
+        "passed": [
+          "typecheck",
+          "Biome lint",
+          "8 runtime tests",
+          "local Workerd SSR/API smoke",
+          "production build",
+          "Wrangler dry deploy",
+          "remote resource check",
+          "remote migrations",
+          "remote readiness",
+          "remote two-account auth and learner-isolation E2E",
+          "remote sign-out and cleared-session E2E",
+          "synthetic cleanup with baseline restoration"
+        ],
+        "remaining": [
+          "AUTH-01 existing password continuity",
+          "AUTH-03 Google OAuth execution",
+          "VISUAL-01 browser surface QA"
+        ],
+        "releaseState": "shadow/deployment-gated"
+      }
+    }
+  ]
+}

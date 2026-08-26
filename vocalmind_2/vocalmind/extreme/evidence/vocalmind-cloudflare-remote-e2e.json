@@ -1,0 +1,81 @@
+{
+  "schema": "apex-cloudflare-product-e2e/v1",
+  "product": "vocalmind",
+  "observedAt": "2026-08-27T02:30:54.9906950+09:00",
+  "candidate": {
+    "url": "https://vocalmind-production.affinity-agent-studio.workers.dev",
+    "deploymentId": "b0caa968-4130-4bee-b874-1d8b3b3aee00",
+    "versionId": "4883b826-1e47-4e3c-92a5-fe28ef5c3995",
+    "mode": "shadow",
+    "productionAuthority": "deployment-gated"
+  },
+  "remoteRuntime": {
+    "homeStatus": 200,
+    "healthStatus": 200,
+    "readyStatus": 200,
+    "statusStatus": 200,
+    "migrationStatus": true,
+    "authConfigured": true,
+    "bindings": {
+      "database": true,
+      "assets": true,
+      "vectorize": true,
+      "ai": true,
+      "coordinator": true
+    },
+    "paidCalls": 0
+  },
+  "remoteSyntheticFlow": {
+    "runner": "bun run verify:auth:remote",
+    "syntheticAccounts": 2,
+    "signUpSessions": 2,
+    "progressWrites": 2,
+    "learnerDashboards": 2,
+    "curriculumStages": 28,
+    "signOutSessionCleared": true,
+    "unauthenticatedLearnerDataStatus": 401,
+    "crossTenantIsolation": true,
+    "sourceParity": {
+      "users": 4,
+      "passwordCredentials": 2,
+      "googleIdentities": 2,
+      "targetUsersAtProbe": 6,
+      "targetPasswordCredentialsAtProbe": 4,
+      "targetGoogleIdentitiesAtProbe": 2,
+      "missingUsers": 0,
+      "missingPasswordCredentials": 0,
+      "missingGoogleIdentities": 0
+    },
+    "cleanupVerified": true,
+    "baselineRestored": {
+      "sourceUsers": 4,
+      "profiles": 4,
+      "authUsers": 4,
+      "progress": 0,
+      "evaluations": 0,
+      "residue": 0
+    }
+  },
+  "existingCredentialContinuity": {
+    "state": "external_gate",
+    "sourcePasswordAccounts": 2,
+    "importedPasswordAccounts": 2,
+    "missingPasswordAccounts": 0,
+    "legacyFilesScanned": 430,
+    "documentedPasswordCandidates": 0,
+    "remoteExistingPasswordSignIns": 0,
+    "secretValuesExposed": false
+  },
+  "googleOauthContinuity": {
+    "state": "external_gate",
+    "sourceIdentities": 2,
+    "importedIdentities": 2,
+    "missingIdentities": 0,
+    "remoteOauthFlows": 0
+  },
+  "visualSurface": {
+    "state": "not_verified",
+    "reason": "Codex in-app browser service unavailable during capture pass"
+  },
+  "verdict": "candidate_pass_existing_auth_and_visual_gates_open"
+}

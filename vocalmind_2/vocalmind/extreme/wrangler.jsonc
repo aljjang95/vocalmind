@@ -1,0 +1,62 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vocalmind-production",
+  "main": "./src/server.ts",
+  "compatibility_date": "2026-08-23",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "upload_source_maps": true,
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "BETTER_AUTH_URL": "https://vocalmind-production.affinity-agent-studio.workers.dev",
+    "MIGRATION_MODE": "shadow",
+    "PRODUCT_SLUG": "vocalmind",
+    "STACK": "tll-highend",
+    "PRODUCTION_AUTHORITY": "deployment-gated",
+    "SUBSCRIPTION_EXECUTION_MODE": "subscription-workers",
+    "DIRECT_PROVIDER_API_EXECUTION": "disabled"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "vocalmind-production",
+      "database_id": "d5f1e35e-eed9-48c4-8456-7d16ba583986",
+      "migrations_dir": "drizzle"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "ASSETS",
+      "bucket_name": "vocalmind-assets",
+      "preview_bucket_name": "vocalmind-assets-preview"
+    }
+  ],
+  "vectorize": [
+    {
+      "binding": "VECTORIZE",
+      "index_name": "vocalmind-index"
+    }
+  ],
+  "ai": {
+    "binding": "AI"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "COORDINATOR",
+        "class_name": "PlatformCoordinator"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "PlatformCoordinator"
+      ]
+    }
+  ]
+}
